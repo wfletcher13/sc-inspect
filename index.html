@@ -84,9 +84,14 @@ label.lbl,.lbl{display:block;font-size:11px;font-weight:600;letter-spacing:.06em
 /* layout */
 #app{display:flex;height:100dvh;overflow:hidden}
 aside.side{width:250px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column;height:100dvh}
-.side-head{padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+.side-head{padding:14px 16px 10px;border-bottom:2px solid var(--accent)}
 .brand{display:flex;align-items:center;gap:9px}
-.brand-mark{width:28px;height:28px;border-radius:7px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-family:var(--font-head);font-weight:700;font-size:12px;letter-spacing:.02em}
+.brand{gap:10px}
+.brand-logo{height:30px;width:auto;display:block}
+/* the wordmark is navy, so in dark mode it sits on a small white plate to stay legible */
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]) .brand-logo{background:#fff;border-radius:6px;padding:4px 7px;height:36px} }
+:root[data-theme="dark"] .brand-logo{background:#fff;border-radius:6px;padding:4px 7px;height:36px}
+@media (max-width:900px){ .brand-logo{height:26px} }
 .brand-name{font-family:var(--font-head);font-weight:700;font-size:14px}
 .brand-sub{font-size:11px;color:var(--ink3);margin-top:-2px}
 .sync{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--ink2)}
@@ -100,7 +105,7 @@ nav.views button.on .cnt{background:var(--accent-bg);border-color:var(--accent-b
 nav.views .sep{height:1px;background:var(--line);margin:6px 16px}
 .side-foot{padding:12px 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
 main.content{flex:1;min-width:0;display:flex;flex-direction:column;height:100dvh}
-.topbar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--bg2);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.topbar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--bg2);border-bottom:2px solid var(--accent);flex-wrap:wrap}
 .topbar h1{font-size:16px;font-weight:700}
 .topbar .grow{flex:1}
 .topbar select{width:auto;max-width:260px;padding:6px 8px;font-size:13px}
@@ -320,7 +325,7 @@ pre.prompt{font-family:var(--font-mono);font-size:11.5px;background:var(--bg4);b
 <div id="app">
   <aside class="side">
     <div class="side-head">
-      <div class="brand"><div class="brand-mark">EB</div><div><div class="brand-name">SC Inspect</div><div class="brand-sub">EB Life Safety</div></div></div>
+      <div class="brand"><img class="brand-logo" src="./logo.png" alt="EB Life Safety" width="180" height="44"><div class="brand-name">SC Inspect</div></div>
       <div class="sync local" id="syncBadge"><span class="dot"></span><span id="syncLabel">Local only</span></div>
     </div>
     <nav class="views" id="sideNav"></nav>
@@ -371,7 +376,7 @@ function qrCanvas(text, px=6){
 <script>
 // ───────────────────────── data model ─────────────────────────
 const SCHEMA_VERSION = 2;
-const BUILD = '2026-09-14.def08141';
+const BUILD = '2026-09-14.b5e0a4d8';
 const FAN_TYPES = ['Stair pressurization fan','Smoke exhaust fan','Make-up air unit','RTU with smoke control','AHU with smoke control','Stair vestibule fan','Elevator pressurization fan','Smoke control damper'];
 const isDamper = e => ((e && e.type) || '').toLowerCase().includes('damper');
 const isFan = e => !isDamper(e);
@@ -1034,7 +1039,7 @@ function renderNav(){
 function renderTopbar(){
   const p = cur(); const tb = $('#topbar');
   if (S.view === 'home' || !p) {
-    tb.innerHTML = `<div class="brand mobile-bar"><div class="brand-mark">EB</div><div class="brand-name">SC Inspect</div></div><div class="grow"></div><div class="sync mobile-bar" id="mSync"><span class="dot"></span><span></span></div><button class="btn-sm" id="tbSettings">Settings</button><button class="btn-primary btn-sm" id="tbNew">+ New building</button>`;
+    tb.innerHTML = `<div class="brand mobile-bar"><img class="brand-logo" src="./logo.png" alt="EB Life Safety" width="150" height="37"><div class="brand-name">SC Inspect</div></div><div class="grow"></div><div class="sync mobile-bar" id="mSync"><span class="dot"></span><span></span></div><button class="btn-sm" id="tbSettings">Settings</button><button class="btn-primary btn-sm" id="tbNew">+ New building</button>`;
     $('#tbNew').onclick = newBuilding; $('#tbSettings').onclick = settingsDialog;
   } else {
     const pr = progress(p);
@@ -1572,7 +1577,7 @@ const PRINT_CSS = `
 #printRoot .doc h3{font-family:'Montserrat',system-ui,sans-serif;font-size:11.5px;margin:12px 0 4px;color:#1b2a1f}
 #printRoot .doc .sub{color:#55665a;font-size:11px;margin:0}
 #printRoot .doc .hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:2px solid #196b24;padding-bottom:10px;margin-bottom:6px}
-#printRoot .doc .mark{width:34px;height:34px;border-radius:7px;background:#196b24;color:#fff;display:grid;place-items:center;font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;flex-shrink:0}
+#printRoot .doc .mark{height:34px;width:auto;display:block}
 #printRoot .doc dl{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:2px 10px;margin:10px 0 0;font-size:11px}
 #printRoot .doc dt{color:#55665a} #printRoot .doc dd{margin:0;font-weight:600}
 #printRoot .doc table{width:100%;border-collapse:collapse;margin:6px 0 10px;font-size:10.5px}
@@ -1611,12 +1616,12 @@ const rvCell = v => v ? `<span class="${v}">${rvTxt(v)}</span>` : '<span class="
 
 function docHeader(p, title){
   const i = p.info;
-  return `<div class="hdr"><div><h1>${esc(title)}</h1><p class="sub">${esc(i.building || p.name || '')}${i.address ? ', ' + esc(i.address) : ''}</p></div><div class="mark">EB</div></div>
+  return `<div class="hdr"><div><h1>${esc(title)}</h1><p class="sub">${esc(i.building || p.name || '')}${i.address ? ', ' + esc(i.address) : ''}</p></div><img class="mark" src="./logo.png" alt="EB Life Safety"></div>
   <dl><dt>Test date</dt><dd>${esc(fmtLong(i.date))}</dd><dt>Inspector</dt><dd>${esc(i.inspector || '')}</dd>
-      <dt>Firm</dt><dd>${esc(i.company || 'Existing Building, LLC')}</dd><dt>Code basis</dt><dd>${esc(i.code || '')}</dd>
+      <dt>Firm</dt><dd>${esc(i.company || 'Existing Building, LLC (EB Life Safety)')}</dd><dt>Code basis</dt><dd>${esc(i.code || '')}</dd>
       <dt>Floors</dt><dd>${esc(i.floorLow)} to ${esc(i.floorHigh || '?')}</dd><dt>Prepared</dt><dd>${esc(fmtLong(new Date().toISOString().slice(0,10)))}</dd></dl>`;
 }
-const DISCLAIMER = `<div class="note"><b>Field summary.</b> This sheet is generated on site from the inspection record for coordination. It is not the sealed Smoke Control Inspection Test Results Report, which is issued separately by Existing Building, LLC.</div>`;
+const DISCLAIMER = `<div class="note"><b>Field summary.</b> This sheet is generated on site from the inspection record for coordination. It is not the sealed Smoke Control Inspection Test Results Report, which is issued separately by Existing Building, LLC (EB Life Safety).</div>`;
 
 function photoFigures(pids){
   const out = [];
