@@ -258,7 +258,13 @@ pre.prompt{font-family:var(--font-mono);font-size:11.5px;background:var(--bg4);b
 .msg.u{align-self:flex-end;background:var(--accent);color:var(--on-accent);border-bottom-right-radius:4px}
 .msg.a{align-self:flex-start;background:var(--bg4);border:1px solid var(--line);border-bottom-left-radius:4px}
 .msg.t{align-self:flex-start;font-size:11.5px;color:var(--ink3);font-family:var(--font-mono);padding:2px 6px}
-.chat-in{display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--line)}
+.quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.quick button{background:var(--bg3);font-size:12px}
+.chat-in{display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--line);align-items:flex-end}
+#chatMic{flex-shrink:0;width:40px;height:40px;padding:0;display:grid;place-items:center}
+#chatMic.rec{background:var(--fail);border-color:var(--fail);color:#fff;animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+@media (prefers-reduced-motion:reduce){#chatMic.rec{animation:none}}
 .chat-in textarea{min-height:40px;max-height:120px;padding:8px 10px}
 /* toast + modal */
 .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:80;display:flex;gap:10px;align-items:center;max-width:90vw}
@@ -287,6 +293,7 @@ pre.prompt{font-family:var(--font-mono);font-size:11.5px;background:var(--bg4);b
 .res.fail{color:var(--fail);background:var(--fail-bg);border-color:var(--fail-bd)}
 .res.partial{color:var(--warn);background:var(--warn-bg);border-color:var(--warn-bd)}
 .res.none{color:var(--ink3);background:var(--bg4);border-color:var(--line)}
+/* PRINT_CSS_INJECTED at runtime by 35-ui-print.js */
 </style>
 
 </head>
@@ -316,10 +323,11 @@ pre.prompt{font-family:var(--font-mono);font-size:11.5px;background:var(--bg4);b
 <div class="chat" id="chat">
   <div class="chat-h"><h3>Ask about this project</h3><button class="btn-sm" id="chatClear">Clear</button><button class="btn-sm" id="chatClose">Close</button></div>
   <div class="chat-log" id="chatLog"></div>
-  <div class="chat-in"><textarea id="chatText" placeholder="e.g. mark SPF-3 belt-off test as fail" rows="1"></textarea><button class="btn-primary" id="chatSend">Send</button></div>
+  <div class="chat-in"><button id="chatMic" title="Dictate" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0014 0M12 17v5"/></svg></button><textarea id="chatText" placeholder="Type or dictate, e.g. mark SPF-3 belt-off as fail" rows="1"></textarea><button class="btn-primary" id="chatSend">Send</button></div>
 </div>
 <div class="toast" id="toast"></div>
 <div id="modalRoot"></div>
+<div id="printRoot"></div>
 
 <script>
 // ───────────────────────── data model ─────────────────────────
@@ -561,7 +569,7 @@ const S = {
   dirty: new Set(lsGet(LS.dirty, [])),
   clientId: lsGet(LS.client, null) || (() => { const c = uid('c'); lsSet(LS.client, c); return c; })(),
   me: lsGet(LS.me, ''),
-  cfg: { owner:'wfletcher13', repo:'sc-inspect-data', token:'', anthropicKey:'', model:'claude-sonnet-4-5', ...lsGet(LS.cfg, {}) },
+  cfg: { owner:'wfletcher13', repo:'sc-inspect-data', token:'', anthropicKey:'', model:'claude-sonnet-5', ...lsGet(LS.cfg, {}) },
   online: navigator.onLine, syncing: false, lastPull: 0, ghOk: null, ghError: '',
   photos: {},                            // photoId -> {dataUrl, caption, ts, projectId, pending}
   currentId: null, view: 'home', homeTab: 'active', pressMode: 'shaft', pressSub: 0,
@@ -956,13 +964,31 @@ function importDialog(){
     $('#mOk').onclick = () => { try { const p = importProjectText($('#impText').value); closeModal(); toast(`Imported ${p.name} (${p.equipment.length} devices)`); } catch (e) { toast(e.message); } };
   });
 }
-async function exportProject(p, withPhotos){
+async function collectPhotos(p){
   const photos = {};
-  if (withPhotos) for (const d of p.deficiencies) for (const pid of (d.photos||[])) { const ph = await fetchPhoto(p.id, pid); if (ph) photos[pid] = { dataUrl: ph.dataUrl, caption: ph.caption||'', ts: ph.ts }; }
-  const text = exportJSON(p, photos);
-  const fname = (p.name || 'project').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'_') + '_SC_Inspect.json';
+  for (const d of p.deficiencies) for (const pid of (d.photos||[])) { const ph = await fetchPhoto(p.id, pid); if (ph) photos[pid] = { dataUrl: ph.dataUrl, caption: ph.caption||'', ts: ph.ts }; }
+  return photos;
+}
+const exportName = p => (p.name || 'project').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'_') + '_SC_Inspect.json';
+async function exportProject(p, withPhotos){
+  const text = exportJSON(p, withPhotos ? await collectPhotos(p) : {});
+  const fname = exportName(p);
   try { const blob = new Blob([text], { type:'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000); toast('Saved ' + fname); return; } catch {}
   try { await navigator.clipboard.writeText(text); toast('JSON copied to clipboard'); } catch { modal(`<h3>Export</h3><textarea style="min-height:260px;font-family:var(--font-mono);font-size:11px">${esc(text)}</textarea><div class="acts"><button id="mCancel">Close</button></div>`, () => $('#mCancel').onclick = closeModal); }
+}
+// Hand the record to Claude from a phone: copy the prompt, then open the share sheet with the file.
+const canShareFiles = () => { try { return !!(navigator.canShare && navigator.share && navigator.canShare({ files: [new File(['{}'], 'x.json', { type:'application/json' })] })); } catch { return false; } }
+async function sendToClaude(p, prompt, withPhotos){
+  const text = exportJSON(p, withPhotos ? await collectPhotos(p) : {});
+  const file = new File([text], exportName(p), { type:'application/json' });
+  let copied = false;
+  try { await navigator.clipboard.writeText(prompt); copied = true; } catch {}
+  if (canShareFiles()) {
+    try { await navigator.share({ files: [file], title: p.name }); toast(copied ? 'Prompt copied. In Claude, paste it and send with the attached file.' : 'File shared. Copy the prompt from the card and paste it in Claude.'); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  await exportProject(p, withPhotos);
+  toast(copied ? 'File saved and prompt copied. Attach the file in Claude and paste the prompt.' : 'File saved. Attach it in Claude with the prompt from the card.');
 }
 
 // ───────────────────────── Setup ─────────────────────────
@@ -1230,25 +1256,32 @@ function bindItems(root){
 function viewReports(p){
   const res = hasResults(p); const pr = progress(p);
   const open = (p._meta.conflicts||[]).filter(c => c.status !== 'resolved' && c.status !== 'na').length;
-  const where = ghConfigured() ? `Read the record from the SC Inspect data repository on GitHub: ${S.cfg.owner}/${S.cfg.repo}, file projects/${p.id}.json (photos under photos/${p.id}/). Do not ask for a pasted export.` : `The record is projects/${p.id}.json in the SC Inspect data repository on GitHub. Do not ask for a pasted export.`;
+  const where = `The SC Inspect export for this building is attached to this message (record ${p.id}). If nothing is attached, read it from the data repository ${S.cfg.owner || 'wfletcher13'}/${S.cfg.repo || 'sc-inspect-data'}, file projects/${p.id}.json.`;
   const docs = [
     { t:'Smoke Control Inspection Test Plan / Basis of Design', skill:'sc-inspection-test-plan', when:'Pre-test. Uses the config, equipment, sequence and zones; result fields print blank.', prompt:`Build the Smoke Control Inspection Test Plan and Basis of Design Report for "${p.name}" using the eb-smoke-control-inspection plugin (sc-inspection-test-plan skill). ${where}`, ok:true },
     { t:'Pretest checklists (fire alarm, fans & dampers, building & egress)', skill:'sc-field-checklists', when:'Sent to the building and vendors ahead of the inspection.', prompt:`Generate the three pretest checklists for "${p.name}" using the eb-smoke-control-inspection plugin (sc-field-checklists skill). ${where}`, ok:true },
     { t:'Open Items, Conflicts & Discrepancies log', skill:'sc-discrepancy-appendix', when:`${(p._meta.conflicts||[]).length} items on this record, ${open} still open. Status and field notes print from the app.`, prompt:`Generate the Open Items / Conflicts / Discrepancies log for "${p.name}" using the eb-smoke-control-inspection plugin (sc-discrepancy-appendix skill). ${where}`, ok:(p._meta.conflicts||[]).length > 0 },
-    { t:'Smoke Control Inspection Test Results Report', skill:'sc-inspection-results', when: res ? `${pr.done} of ${pr.total} results entered${pr.fails ? `, ${pr.fails} fail` : ''}, ${p.deficiencies.length} deficiencies. Photos attached to deficiencies are included.` : 'No results entered yet; this becomes available once testing starts.', prompt:`The inspection of "${p.name}" is complete. Build the Smoke Control Inspection Test Results Report with all results and deficiencies using the eb-smoke-control-inspection plugin (sc-inspection-results skill). ${where} Include the deficiency photos from photos/${p.id}/ in Appendix C.`, ok:res },
+    { t:'Smoke Control Inspection Test Results Report', skill:'sc-inspection-results', when: res ? `${pr.done} of ${pr.total} results entered${pr.fails ? `, ${pr.fails} fail` : ''}, ${p.deficiencies.length} deficiencies. Photos attached to deficiencies are included.` : 'No results entered yet; this becomes available once testing starts.', photos:true, prompt:`The inspection of "${p.name}" is complete. Build the Smoke Control Inspection Test Results Report with all results and deficiencies using the eb-smoke-control-inspection plugin (sc-inspection-results skill). ${where} The deficiency photos travel inside the export under _photos; put them in Appendix C.`, ok:res },
   ];
-  const cards = docs.map((d,i) => `<div class="card"><h4>${esc(d.t)}</h4><p>${esc(d.when)}</p><pre class="prompt" id="pr${i}">${esc(d.prompt)}</pre><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn-sm ${d.ok?'btn-primary':''}" data-copy="pr${i}">Copy prompt</button><span class="small faint mono">${d.skill}</span></div></div>`).join('');
-  const how = `<p class="hint">The Word documents are produced by the plugin's own engine (the exact skill, letterhead and tables), which runs in a Claude session, not in this page. Copy a prompt, open Claude with the EB Smoke Control Inspection plugin enabled, and paste it. The skill reads this building straight from the team repository on GitHub, so there is nothing to export or paste, and the .docx comes back in that chat. Make sure this device shows "Synced" first.</p><div class="rep">${cards}</div>`;
+  const cards = docs.map((d,i) => `<div class="card"><h4>${esc(d.t)}</h4><p>${esc(d.when)}</p><pre class="prompt" id="pr${i}">${esc(d.prompt)}</pre><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn-sm ${d.ok?'btn-primary':''}" data-send="${i}" data-photos="${d.photos?1:0}">Send to Claude</button><button class="btn-sm" data-copy="pr${i}">Copy prompt only</button><span class="small faint mono">${d.skill}</span></div></div>`).join('');
+  const how = `<p class="hint">The Word documents are produced by the plugin's own engine (the exact skill, letterhead and tables), which runs in a Claude session, not in this page. <b>Send to Claude</b> copies the prompt and shares this building's data to the Claude desktop or mobile app; in Claude, paste the prompt and send it with the attached file. The .docx comes back in that chat, ready to share. This works on a phone with no computer involved.</p><div class="rep">${cards}</div>`;
   const data = `<div class="kv"><dt>Record id</dt><dd class="mono">${esc(p.id)} <button class="btn-sm" data-copytext="${esc(p.id)}">Copy</button></dd><dt>Schema</dt><dd>v${p.schemaVersion||1}</dd><dt>Created</dt><dd>${esc(fmtDate(p.created))}</dd><dt>Updated</dt><dd>${esc(new Date(p.updated).toLocaleString())}</dd><dt>Local copy</dt><dd>${STORAGE_OK ? 'Kept in this browser (survives signal loss and reloads)' : '<span class="flag">Not available in this browser</span>'}</dd><dt>Sync</dt><dd>${S.dirty.has(p.id) ? '<span class="flag">Edits pending upload</span>' : (ghConfigured() ? `Synced with ${esc(S.cfg.owner)}/${esc(S.cfg.repo)}` : 'This device only')}</dd></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px"><button id="expJson">Export JSON</button><button id="expJsonP">Export JSON with photos</button><button id="impHere">Import JSON as new building</button><button id="dupBld">Duplicate building</button></div>
     <p class="hint" style="margin-top:10px">Exports are byte-compatible with the plugin skills and with the old Replit app. Importing never overwrites: it always creates a new building.</p>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button id="syncNowBtn">Sync now</button><button id="openSettings2">Settings</button></div>`;
   const log = (p._conflicts||[]).length ? `<p class="hint">Edits by two people to the same field at the same time. The kept value is on the record; the other is listed here so nothing is lost.</p>${p._conflicts.slice().reverse().map(c => `<div class="card small"><div class="mono">${esc(c.path)}</div><div><span class="faint">kept:</span> ${esc(JSON.stringify(c.kept))} · <span class="faint">other:</span> ${esc(JSON.stringify(c.dropped))}</div><div class="faint">${esc(c.by||'')} · ${esc(new Date(c.at).toLocaleString())}</div></div>`).join('')}` : '<div class="empty">No overlapping edits recorded.</div>';
-  return sec('r_docs', 'Generate documents', how) + sec('r_data', 'Record & data transfer', data, { open:false }) + sec('r_log', `Sync log (${(p._conflicts||[]).length})`, log, { open:false });
+  const quick = `<p class="hint">Built on this device from the record, with photos, in a second. Use it to leave something with the building before you go. It is a field summary, not the sealed report.</p>
+    <div class="rep">
+      <div class="card"><h4>Deficiency list</h4><p>${p.deficiencies.length} item${p.deficiencies.length===1?'':'s'} with photos and required corrective actions.</p><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn-sm btn-primary" data-doc="defic">Open</button></div></div>
+      <div class="card"><h4>Field summary</h4><p>Progress, equipment results, zones, matrix and pressure exceptions, open items and deficiencies.</p><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn-sm btn-primary" data-doc="summary">Open</button></div></div>
+    </div>`;
+  return sec('r_quick', 'Field summary now (PDF or HTML)', quick) + sec('r_docs', 'Word deliverables via Claude', how) + sec('r_data', 'Record & data transfer', data, { open:false }) + sec('r_log', `Sync log (${(p._conflicts||[]).length})`, log, { open:false });
 }
 function bindReports(root, p){
   $$('[data-copy]', root).forEach(b => b.onclick = () => navigator.clipboard.writeText($('#'+b.dataset.copy, root).textContent).then(() => toast('Prompt copied. Paste it into a Claude chat with the plugin enabled.')).catch(() => toast('Copy failed; select the text manually')));
+  $$('[data-send]', root).forEach(b => b.onclick = async () => { const i = +b.dataset.send; const prompt = $('#pr'+i, root).textContent; b.disabled = true; b.textContent = 'Preparing…'; try { await sendToClaude(p, prompt, b.dataset.photos === '1'); } finally { b.disabled = false; b.textContent = 'Send to Claude'; } });
   $$('[data-copytext]', root).forEach(b => b.onclick = () => navigator.clipboard.writeText(b.dataset.copytext).then(() => toast('Copied')));
+  $$('[data-doc]', root).forEach(b => b.onclick = async () => { b.disabled = true; try { await openFieldDoc(p, b.dataset.doc); } finally { b.disabled = false; } });
   $('#expJson', root).onclick = () => exportProject(p, false); $('#expJsonP', root).onclick = () => exportProject(p, true);
   $('#impHere', root).onclick = importDialog;
   $('#syncNowBtn', root).onclick = () => { if (!ghConfigured()) return settingsDialog(); toast('Syncing…'); syncNow(true); };
@@ -1302,9 +1335,27 @@ function chatTools(){
       execute: (inp) => { const p = P(); if (p.equipment.some(e => e.tag.toLowerCase() === String(inp.tag).toLowerCase())) throw new Error('Tag exists'); const type = FAN_TYPES.find(t => t.toLowerCase() === String(inp.type).toLowerCase()) || FAN_TYPES.find(t => t.toLowerCase().includes(String(inp.type).toLowerCase().split(' ')[0])) || FAN_TYPES[0]; updateProject(id(), pr => { pr.equipment.push({ tag: String(inp.tag), type, location: String(inp.location||''), zone: String(inp.zone||''), room: String(inp.room||''), floor: String(inp.floor||''), cfm: String(inp.cfm||''), cmnt:'', hasVFD: !!inp.hasVFD, hasBelt: !!inp.hasBelt, hasDuctDet: !!inp.hasDuctDet }); return pr; }, { keepFocus:true }); return `Added ${inp.tag} (${type})`; } },
   ];
 }
+const QUICK = ['What is still open?', 'Summarise the fails', 'Any pressure readings out of range?', 'What did I record on this floor?'];
 function chatRender(){
-  const log = $('#chatLog'); log.innerHTML = S.chat.map(m => `<div class="msg ${m.role === 'user' ? 'u' : m.role === 'tool' ? 't' : 'a'}">${esc(m.content)}</div>`).join('') || `<div class="msg a">Ask about this building or tell me what to record. Examples: "mark SPF-3 belt-off as fail", "corridor dampers pass on levels 20 to 30", "Stair A level 12: dp 0.08, break 22, swing 14, latched", "what is still open?", "add a deficiency: level 9 west elevator lobby door does not latch".</div>`;
+  const log = $('#chatLog'); if (!log) return;
+  const intro = `<div class="msg a">Tell me what to record, or ask about this building. For example: "mark SPF-3 belt-off as fail", "corridor dampers pass on levels 20 to 30", "Stair A level 12: dp 0.08, break 22, swing 14, latched", "add a deficiency: level 9 west elevator lobby door does not latch".</div>`;
+  log.innerHTML = (S.chat.length ? S.chat.map(m => `<div class="msg ${m.role === 'user' ? 'u' : m.role === 'tool' ? 't' : 'a'}">${esc(m.content)}</div>`).join('') : intro)
+    + (S.chat.length ? '' : `<div class="quick">${QUICK.map(q => `<button class="btn-sm" data-quick="${esc(q)}">${esc(q)}</button>`).join('')}</div>`);
+  $$('[data-quick]', log).forEach(b => b.onclick = () => { $('#chatText').value = b.dataset.quick; chatSend(); });
   log.scrollTop = log.scrollHeight;
+}
+const CHAT_KEY = 'scv5_chat_';
+function chatLoad(id){ try { return JSON.parse(localStorage.getItem(CHAT_KEY + id) || '[]'); } catch { return []; } }
+function chatSave(id, msgs){ try { localStorage.setItem(CHAT_KEY + id, JSON.stringify(msgs.slice(-40))); } catch {} }
+function apiError(e){
+  const m = (e && e.message || '').toLowerCase();
+  if (e && e.name === 'AbortError') return 'Stopped.';
+  if (e && e.status === 401) return 'The Anthropic API key was rejected. Check it in Settings.';
+  if (e && e.status === 429) return 'Rate limited by the API. Wait a few seconds and try again.';
+  if (m.includes('credit') || m.includes('billing')) return 'The Anthropic account is out of credit. Top it up in the console, then try again.';
+  if (e && e.status >= 500) return 'The API had a problem. Try again in a moment.';
+  if (m.includes('failed to fetch') || m.includes('networkerror')) return 'No connection to the API. This needs signal; your entries are saved either way.';
+  return 'Could not get an answer: ' + (e && e.message || e);
 }
 async function anthropicCall(messages, tools, signal, onText){
   const body = { model: S.cfg.model || 'claude-sonnet-4-5', max_tokens: 1500, system: RULES, messages, tools: tools.map(t => ({ name: t.name, description: t.description, input_schema: t.inputSchema || { type:'object', properties:{} } })) };
@@ -1317,6 +1368,7 @@ async function chatSend(){
   const box = $('#chatText'); const text = box.value.trim(); if (!text || S.chatBusy) return; const p = cur(); if (!p) return;
   if (!S.online) { toast('Chat needs a connection.'); return; }
   if (!S.cfg.anthropicKey) { toast('Add your Anthropic API key in Settings to use chat.'); settingsDialog(); return; }
+  if (recOn) { try { REC.stop(); } catch {} }
   box.value = ''; S.chat.push({ role:'user', content:text }); S.chatBusy = true; chatRender();
   const bubble = { role:'assistant', content:'Thinking…' }; S.chat.push(bubble); chatRender();
   S.chatCtl = new AbortController();
@@ -1343,16 +1395,191 @@ async function chatSend(){
       bubble.content = 'Working…'; chatRender();
     }
     if (bubble.content === 'Working…' || bubble.content === 'Thinking…') bubble.content = 'Done.';
-  } catch (e) { bubble.content = e.name === 'AbortError' ? 'Stopped.' : e.status === 401 ? 'The Anthropic API key was rejected. Check Settings.' : 'Could not get an answer: ' + (e.message || e); }
-  S.chatBusy = false; chatRender();
+  } catch (e) { bubble.content = apiError(e); }
+  S.chatBusy = false; chatRender(); chatSave(p.id, S.chat);
+}
+// Dictation, for when both hands are busy. iOS Safari exposes webkitSpeechRecognition.
+let REC = null, recOn = false;
+function micSupported(){ return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
+function micToggle(){
+  if (!micSupported()) return;
+  const btn = $('#chatMic');
+  if (recOn) { try { REC.stop(); } catch {} return; }
+  const R = window.SpeechRecognition || window.webkitSpeechRecognition;
+  REC = new R(); REC.lang = 'en-US'; REC.interimResults = true; REC.continuous = false;
+  const box = $('#chatText'); const base = box.value ? box.value + ' ' : '';
+  REC.onstart = () => { recOn = true; btn.classList.add('rec'); btn.title = 'Stop dictation'; };
+  REC.onresult = e => { let t = ''; for (let i = e.resultIndex; i < e.results.length; i++) t += e.results[i][0].transcript; box.value = base + t; };
+  REC.onerror = e => { toast(e.error === 'not-allowed' ? 'Microphone access was refused.' : 'Dictation stopped.'); };
+  REC.onend = () => { recOn = false; btn.classList.remove('rec'); btn.title = 'Dictate'; box.focus(); };
+  try { REC.start(); } catch { toast('Dictation is not available here.'); }
 }
 function chatInit(){
-  $('#chatFab').onclick = () => { $('#chat').classList.add('open'); chatRender(); $('#chatText').focus(); };
+  $('#chatFab').onclick = () => { const p = cur(); if (p) S.chat = chatLoad(p.id); $('#chat').classList.add('open'); chatRender(); if (!/Mobi/i.test(navigator.userAgent)) $('#chatText').focus(); };
   $('#chatClose').onclick = () => $('#chat').classList.remove('open');
-  $('#chatClear').onclick = () => { S.chat = []; chatRender(); };
+  $('#chatClear').onclick = () => { S.chat = []; const p = cur(); if (p) chatSave(p.id, []); chatRender(); };
   $('#chatSend').onclick = chatSend;
+  $('#chatMic').hidden = !micSupported();
+  $('#chatMic').onclick = micToggle;
   $('#chatText').onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSend(); } };
 }
+
+</script>
+<script>
+// ───────────────────────── On-the-fly field summary (HTML / PDF) ─────────────────────────
+// Produced entirely on the device from the record, for handing to the building before leaving site.
+// This is NOT the sealed deliverable: the Word reports still come from the plugin engine.
+
+const PRINT_CSS = `
+#printRoot{display:none}
+#printRoot.on{display:block;position:fixed;inset:0;z-index:120;background:#fff;overflow:auto;-webkit-overflow-scrolling:touch}
+#printRoot .pbar{position:sticky;top:0;display:flex;gap:8px;align-items:center;padding:10px 14px;background:#f4f7f3;border-bottom:1px solid #d9e1d8;flex-wrap:wrap}
+#printRoot .pbar .grow{flex:1}
+#printRoot .doc{max-width:8.5in;margin:0 auto;padding:28px 34px 60px;color:#1b2a1f;background:#fff;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:11.5px;line-height:1.5}
+#printRoot .doc h1{font-family:'Montserrat',system-ui,sans-serif;font-size:19px;color:#196b24;margin:0 0 2px}
+#printRoot .doc h2{font-family:'Montserrat',system-ui,sans-serif;font-size:13px;color:#196b24;margin:20px 0 6px;padding-bottom:3px;border-bottom:1.5px solid #196b24}
+#printRoot .doc h3{font-family:'Montserrat',system-ui,sans-serif;font-size:11.5px;margin:12px 0 4px;color:#1b2a1f}
+#printRoot .doc .sub{color:#55665a;font-size:11px;margin:0}
+#printRoot .doc .hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:2px solid #196b24;padding-bottom:10px;margin-bottom:6px}
+#printRoot .doc .mark{width:34px;height:34px;border-radius:7px;background:#196b24;color:#fff;display:grid;place-items:center;font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;flex-shrink:0}
+#printRoot .doc dl{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:2px 10px;margin:10px 0 0;font-size:11px}
+#printRoot .doc dt{color:#55665a} #printRoot .doc dd{margin:0;font-weight:600}
+#printRoot .doc table{width:100%;border-collapse:collapse;margin:6px 0 10px;font-size:10.5px}
+#printRoot .doc th{background:#e6f2e7;color:#14401a;text-align:left;font-weight:600;padding:5px 6px;border:1px solid #b9d8bd;font-size:10px;letter-spacing:.02em}
+#printRoot .doc td{padding:4px 6px;border:1px solid #d9e1d8;vertical-align:top}
+#printRoot .doc td.c{text-align:center;font-variant-numeric:tabular-nums}
+#printRoot .doc .pass{color:#1f8a3b;font-weight:600} #printRoot .doc .fail{color:#c43b2e;font-weight:700} #printRoot .doc .na{color:#6b7a70}
+#printRoot .doc .pill{display:inline-block;border:1px solid;border-radius:4px;padding:0 6px;font-size:9.5px;font-weight:700;letter-spacing:.03em}
+#printRoot .doc .p-def{color:#c43b2e;border-color:#eebbb5;background:#fbeae8}
+#printRoot .doc .p-obs{color:#b07a12;border-color:#ecd59a;background:#fbf3df}
+#printRoot .doc .p-note{color:#55665a;border-color:#cfd7d0;background:#eef1ee}
+#printRoot .doc .note{background:#f8faf7;border-left:3px solid #196b24;padding:7px 10px;margin:8px 0;font-size:10.5px;color:#55665a}
+#printRoot .doc .ph{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 2px}
+#printRoot .doc .ph figure{margin:0;width:2.3in} #printRoot .doc .ph img{width:100%;border:1px solid #d9e1d8;border-radius:3px}
+#printRoot .doc .ph figcaption{font-size:9.5px;color:#55665a;margin-top:2px}
+#printRoot .doc .foot{margin-top:24px;padding-top:8px;border-top:1px solid #d9e1d8;font-size:9.5px;color:#8a988e}
+#printRoot .doc .item{break-inside:avoid;page-break-inside:avoid;margin-bottom:12px}
+@media (max-width:640px){
+  #printRoot .doc{padding:16px 14px;font-size:11px}
+  #printRoot .doc dl{grid-template-columns:auto 1fr}
+  #printRoot .doc h1{font-size:17px}
+  #printRoot .doc table{font-size:10px}
+  #printRoot .doc .ph figure{width:calc(50% - 4px)}
+}
+@media print{
+  body > *{display:none !important}
+  body > #printRoot{display:block !important;position:static;overflow:visible}
+  #printRoot .pbar{display:none !important}
+  #printRoot .doc{max-width:none;padding:0;font-size:10.5pt}
+  @page{margin:0.6in}
+}`;
+
+function fmtLong(iso){ if (!iso) return ''; try { const d = new Date(iso + (iso.length === 10 ? 'T12:00:00' : '')); return d.toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' }); } catch { return iso; } }
+const rvTxt = v => ({ pass:'Pass', fail:'Fail', na:'N/A' })[v] || '';
+const rvCell = v => v ? `<span class="${v}">${rvTxt(v)}</span>` : '<span class="na">—</span>';
+
+function docHeader(p, title){
+  const i = p.info;
+  return `<div class="hdr"><div><h1>${esc(title)}</h1><p class="sub">${esc(i.building || p.name || '')}${i.address ? ', ' + esc(i.address) : ''}</p></div><div class="mark">EB</div></div>
+  <dl><dt>Test date</dt><dd>${esc(fmtLong(i.date))}</dd><dt>Inspector</dt><dd>${esc(i.inspector || '')}</dd>
+      <dt>Firm</dt><dd>${esc(i.company || 'Existing Building, LLC')}</dd><dt>Code basis</dt><dd>${esc(i.code || '')}</dd>
+      <dt>Floors</dt><dd>${esc(i.floorLow)} to ${esc(i.floorHigh || '?')}</dd><dt>Prepared</dt><dd>${esc(fmtLong(new Date().toISOString().slice(0,10)))}</dd></dl>`;
+}
+const DISCLAIMER = `<div class="note"><b>Field summary.</b> This sheet is generated on site from the inspection record for coordination. It is not the sealed Smoke Control Inspection Test Results Report, which is issued separately by Existing Building, LLC.</div>`;
+
+function photoFigures(pids){
+  const out = [];
+  for (const pid of pids || []) { const ph = S.photos[pid]; if (ph && ph.dataUrl) out.push(`<figure><img src="${ph.dataUrl}" alt=""><figcaption>${esc(ph.caption || '')}</figcaption></figure>`); }
+  return out.length ? `<div class="ph">${out.join('')}</div>` : '';
+}
+
+function deficiencyDoc(p){
+  const ds = p.deficiencies || [];
+  const bySev = s => ds.filter(d => d.sev === s);
+  const rows = ds.map((d,i) => `<div class="item"><table><tr><th style="width:26px">#</th><th style="width:130px">Location</th><th style="width:78px">Classification</th><th>Observed condition</th><th>Required corrective action</th></tr>
+    <tr><td class="c">${i+1}</td><td>${esc(d.loc || '')}</td><td><span class="pill p-${d.sev === 'Deficiency' ? 'def' : d.sev === 'Observation' ? 'obs' : 'note'}">${esc(d.sev)}</span></td><td>${esc(d.desc)}</td><td>${esc(d.action || '')}</td></tr></table>${photoFigures(d.photos)}</div>`).join('');
+  return `${docHeader(p, 'Smoke Control Inspection: Deficiency List')}
+    ${DISCLAIMER}
+    <h2>Summary</h2>
+    <table><tr><th>Deficiencies</th><th>Observations</th><th>Notes</th><th>Total items</th></tr>
+      <tr><td class="c">${bySev('Deficiency').length}</td><td class="c">${bySev('Observation').length}</td><td class="c">${bySev('Note').length}</td><td class="c">${ds.length}</td></tr></table>
+    <h2>Items</h2>
+    ${rows || '<p>No deficiencies, observations or notes were recorded.</p>'}
+    ${p.notes ? `<h2>General notes</h2><p>${esc(p.notes).replace(/\n/g,'<br>')}</p>` : ''}
+    <div class="foot">${esc(p.info.company || 'Existing Building, LLC')} · ${esc(p.name)} · generated ${new Date().toLocaleString()}</div>`;
+}
+
+function summaryDoc(p){
+  const pr = progress(p);
+  const sys = [p.systems.stair && 'stair pressurization', p.systems.vest && 'vestibule pressurization', p.systems.elev && 'elevator hoistway pressurization', p.systems.corr && 'corridor smoke control', p.systems.lobby && 'lobby / amenity exhaust'].filter(Boolean).join(', ');
+  // per-device results
+  const eqRows = p.equipment.map(e => {
+    const tests = getSeqTests(e); const vals = tests.map((t,ti) => seqGet(p,e,ti));
+    const fails = tests.filter((t,ti) => vals[ti] === 'fail').map(t => t.action);
+    const done = vals.filter(Boolean).length;
+    const status = fails.length ? `<span class="fail">Fail</span>` : done === 0 ? '<span class="na">Not tested</span>' : done < tests.length ? '<span class="na">Partial</span>' : '<span class="pass">Pass</span>';
+    return `<tr><td>${esc(e.tag)}</td><td>${esc(e.type)}</td><td>${esc(e.location || '')}</td><td class="c">${done}/${tests.length}</td><td class="c">${status}</td><td>${esc(fails.join('; '))}</td></tr>`;
+  }).join('');
+  // visual + table 2
+  const vis = [...VISUAL_ITEMS, ...FAULT_TESTS, ...EMERG_TESTS, ...INIT_TESTS];
+  const visFails = vis.filter(v => p.seqResults[v.id] === 'fail');
+  // zones
+  const zones = getZones(p);
+  const zoneRows = zones.map(z => `<tr><td>${esc(z.zone)}</td><td>${esc(z.room || '')}</td><td>${esc(z.floor || '')}</td><td class="c">${rvCell(p.zoneResults[z.zone+'_fans'])}</td><td class="c">${rvCell(p.zoneResults[z.zone+'_dampers'])}</td><td class="c">${rvCell(p.zoneResults[z.zone+'_isolate'])}</td><td>${esc(p.zoneResults[z.zone+'_note'] || '')}</td></tr>`).join('');
+  // matrix failures only (a full matrix is for the sealed report)
+  const mFails = Object.entries(p.matrixResults).filter(([,v]) => v === 'fail');
+  const cols = Object.fromEntries(getMatrixCols(p).map(c => [c.key, c.label]));
+  const mRows = mFails.map(([k]) => { const i = k.indexOf('_'); const fl = k.slice(0,i), col = k.slice(i+1); return `<tr><td class="c">${esc(fl)}</td><td>${esc(cols[col] || col)}</td></tr>`; }).join('');
+  // pressure exceptions
+  const pEx = Object.entries(p.floors).filter(([,d]) => pressFlag('dp', d.dp) || pressFlag('brk', d.brk) || pressFlag('swg', d.swg) || d.cl === 'fail');
+  const blkLabel = pre => (pressBlocks(p).find(b => b.prefix === pre) || {}).label || pre;
+  const pRows = pEx.map(([k,d]) => { const i = k.lastIndexOf('_'); return `<tr><td>${esc(blkLabel(k.slice(0,i)))}</td><td class="c">${esc(k.slice(i+1))}</td><td class="c ${pressFlag('dp',d.dp)?'fail':''}">${esc(d.dp || '')}</td><td class="c ${pressFlag('brk',d.brk)?'fail':''}">${esc(d.brk || '')}</td><td class="c ${pressFlag('swg',d.swg)?'fail':''}">${esc(d.swg || '')}</td><td class="c">${rvCell(d.cl)}</td></tr>`; }).join('');
+  const openItems = (p._meta.conflicts || []).filter(c => c.status !== 'resolved' && c.status !== 'na');
+  return `${docHeader(p, 'Smoke Control Inspection: Field Summary')}
+    ${DISCLAIMER}
+    <h2>Systems and progress</h2>
+    <p>Systems present: ${esc(sys || 'none selected')}.</p>
+    <table><tr><th>Results recorded</th><th>Complete</th><th>Failures</th><th>Deficiencies</th><th>Open items</th></tr>
+      <tr><td class="c">${pr.done} of ${pr.total}</td><td class="c">${pr.pct}%</td><td class="c ${pr.fails?'fail':'pass'}">${pr.fails}</td><td class="c">${p.deficiencies.length}</td><td class="c">${openItems.length}</td></tr></table>
+    <h2>Equipment functional tests</h2>
+    <table><tr><th>Tag</th><th>Type</th><th>Location</th><th>Tested</th><th>Result</th><th>Failed steps</th></tr>${eqRows || '<tr><td colspan="6">No equipment recorded.</td></tr>'}</table>
+    ${visFails.length ? `<h2>Visual and system checks that failed</h2><table><tr><th>Item</th></tr>${visFails.map(v => `<tr><td>${esc(v.lbl)}</td></tr>`).join('')}</table>` : ''}
+    ${zones.length ? `<h2>Lower-level zones</h2><table><tr><th>Zone</th><th>Room / area</th><th>Floor</th><th>Fans purge</th><th>Dampers</th><th>Adj. isolate</th><th>Note</th></tr>${zoneRows}</table>` : ''}
+    ${mRows ? `<h2>Floor matrix failures</h2><table><tr><th>Level</th><th>System</th></tr>${mRows}</table>` : ''}
+    <h2>Pressure and door force exceptions</h2>
+    ${pRows ? `<table><tr><th>Shaft / door</th><th>Level</th><th>ΔP in. w.g.</th><th>Break lb</th><th>Swing lb</th><th>Close / latch</th></tr>${pRows}</table><p class="sub">Minimum 0.05 in. w.g.; maximum door force 30 lbf (NFPA 92 §6.4.2).</p>` : '<p>No pressure differential or door force readings fell outside NFPA 92 limits.</p>'}
+    ${openItems.length ? `<h2>Open items still to resolve</h2><table><tr><th>Priority</th><th>Item</th><th>Action</th></tr>${openItems.map(c => `<tr><td class="c">${esc(c.priority || '')}</td><td>${esc(c.item)}</td><td>${esc(c.action || '')}</td></tr>`).join('')}</table>` : ''}
+    <h2>Deficiencies</h2>
+    ${p.deficiencies.length ? p.deficiencies.map((d,i) => `<div class="item"><h3>${i+1}. ${esc(d.loc || 'Location not stated')} <span class="pill p-${d.sev === 'Deficiency' ? 'def' : d.sev === 'Observation' ? 'obs' : 'note'}">${esc(d.sev)}</span></h3><p>${esc(d.desc)}</p>${d.action ? `<p><b>Required corrective action:</b> ${esc(d.action)}</p>` : ''}${photoFigures(d.photos)}</div>`).join('') : '<p>No deficiencies recorded.</p>'}
+    <div class="foot">${esc(p.info.company || 'Existing Building, LLC')} · ${esc(p.name)} · generated ${new Date().toLocaleString()}</div>`;
+}
+
+async function openFieldDoc(p, mode){
+  // make sure photos referenced by deficiencies are in hand before rendering
+  const need = [];
+  for (const d of p.deficiencies) for (const pid of (d.photos || [])) if (!S.photos[pid]) need.push(pid);
+  if (need.length) { toast('Fetching ' + need.length + ' photo' + (need.length>1?'s':'') + '…'); for (const pid of need) await fetchPhoto(p.id, pid); }
+  const title = mode === 'defic' ? 'Deficiency List' : 'Field Summary';
+  const body = mode === 'defic' ? deficiencyDoc(p) : summaryDoc(p);
+  const root = $('#printRoot');
+  root.innerHTML = `<div class="pbar"><b style="font-family:var(--font-head)">${esc(title)}</b><span class="grow"></span>
+      <button id="pdfBtn" class="btn-primary btn-sm">Save as PDF</button><button id="shareBtn" class="btn-sm">Share</button><button id="closePrint" class="btn-sm">Close</button></div>
+    <div class="doc" id="printDoc">${body}</div>`;
+  root.classList.add('on');
+  $('#closePrint').onclick = () => { root.classList.remove('on'); root.innerHTML = ''; };
+  $('#pdfBtn').onclick = () => window.print();
+  $('#shareBtn').onclick = async () => {
+    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(p.name)} ${esc(title)}</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&family=IBM+Plex+Sans:wght@400;600&display=swap"><style>${PRINT_CSS.replace(/#printRoot\s?/g,'').replace(/body > \*\{display:none !important\}/,'')}</style></head><body><div class="doc">${body}</div></body></html>`;
+    const fname = (p.name || 'building').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'_') + '_' + (mode === 'defic' ? 'Deficiency_List' : 'Field_Summary') + '.html';
+    const file = new File([html], fname, { type:'text/html' });
+    try { if (navigator.canShare && navigator.canShare({ files:[file] })) { await navigator.share({ files:[file], title: p.name + ' ' + title }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([html], { type:'text/html' })); a.download = fname; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+    toast('Saved ' + fname);
+  };
+}
+
+// inject the print stylesheet once
+(function(){ const st = document.createElement('style'); st.textContent = PRINT_CSS; document.head.appendChild(st); })();
 
 </script>
 <script>
@@ -1373,10 +1600,11 @@ function settingsDialog(){
     <div class="row2"><div class="field"><label class="lbl" for="st_key">Anthropic API key</label><input id="st_key" type="password" value="${esc(c.anthropicKey)}" placeholder="sk-ant-…" autocapitalize="off"></div><div class="field"><label class="lbl" for="st_model">Model</label><input id="st_model" value="${esc(c.model)}" autocapitalize="off"></div></div>
     <div class="field"><label class="lbl" for="st_me">Inspector name (this device)</label><input id="st_me" value="${esc(S.me)}"></div>
     <div id="st_msg" class="small muted"></div>
-    <div class="acts"><button id="st_test">Test connection</button><button id="mCancel">Cancel</button><button id="mOk" class="btn-primary">Save</button></div>`, () => {
-    const read = () => { S.cfg.owner = $('#st_owner').value.trim(); S.cfg.repo = $('#st_repo').value.trim(); S.cfg.token = $('#st_token').value.trim(); S.cfg.anthropicKey = $('#st_key').value.trim(); S.cfg.model = $('#st_model').value.trim() || 'claude-sonnet-4-5'; S.me = $('#st_me').value.trim(); saveCfg(); lsSet(LS.me, S.me); };
+    <div class="acts"><button id="st_test">Test repository</button><button id="st_testai">Test assistant</button><button id="mCancel">Cancel</button><button id="mOk" class="btn-primary">Save</button></div>`, () => {
+    const read = () => { S.cfg.owner = $('#st_owner').value.trim(); S.cfg.repo = $('#st_repo').value.trim(); S.cfg.token = $('#st_token').value.trim(); S.cfg.anthropicKey = $('#st_key').value.trim(); S.cfg.model = $('#st_model').value.trim() || 'claude-sonnet-5'; S.me = $('#st_me').value.trim(); saveCfg(); lsSet(LS.me, S.me); };
     $('#mCancel').onclick = closeModal;
     $('#st_test').onclick = async () => { read(); const m = $('#st_msg'); m.textContent = 'Testing…'; try { const r = await ghTest(); m.textContent = `Connected to ${r.full_name} (${r.private ? 'private' : 'public'}).`; } catch (e) { m.textContent = 'Could not connect: ' + e.message; } };
+    $('#st_testai').onclick = async () => { read(); const m = $('#st_msg'); if (!S.cfg.anthropicKey) { m.textContent = 'Add an Anthropic API key first, or leave it blank to work without the assistant.'; return; } m.textContent = 'Asking Claude…'; try { const r = await anthropicCall([{ role:'user', content:'Reply with the single word: ready' }], [], undefined); const t = (r.content||[]).filter(c=>c.type==='text').map(c=>c.text).join(' ').trim(); m.textContent = 'Assistant replied: ' + (t || '(empty)') + '  ·  model ' + (r.model || S.cfg.model); } catch (e) { m.textContent = apiError(e); } };
     $('#mOk').onclick = () => { read(); closeModal(); S.ghOk = null; S.lastPull = 0; render(); if (ghConfigured() && S.online) { toast('Saved. Syncing…'); syncNow(true); } };
   });
 }
