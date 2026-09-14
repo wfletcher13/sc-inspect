@@ -343,7 +343,7 @@ pre.prompt{font-family:var(--font-mono);font-size:11.5px;background:var(--bg4);b
 <script>
 // ───────────────────────── data model ─────────────────────────
 const SCHEMA_VERSION = 2;
-const BUILD = '2026-09-14.9309e09f';
+const BUILD = '2026-09-14.a7f9dcae';
 const FAN_TYPES = ['Stair pressurization fan','Smoke exhaust fan','Make-up air unit','RTU with smoke control','AHU with smoke control','Stair vestibule fan','Elevator pressurization fan','Smoke control damper'];
 const isDamper = e => ((e && e.type) || '').toLowerCase().includes('damper');
 const isFan = e => !isDamper(e);
@@ -687,10 +687,27 @@ const GH_API = 'https://api.github.com';
 const b64enc = s => btoa(unescape(encodeURIComponent(s)));
 const b64dec = s => decodeURIComponent(escape(atob(s.replace(/\n/g,''))));
 async function gh(path, opts={}){
-  const r = await fetch(GH_API + path, { ...opts, headers: { 'Authorization': 'Bearer ' + S.cfg.token, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', ...(opts.headers||{}) } });
+  let r;
+  try {
+    r = await fetch(GH_API + path, { ...opts, headers: { 'Authorization': 'Bearer ' + S.cfg.token, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', ...(opts.headers||{}) } });
+  } catch (e) {
+    // fetch itself failed, so the request never reached GitHub: no signal, a captive portal, or a
+    // network that blocks it. Browsers give almost nothing here, so say what it means instead.
+    const err = new Error(navigator.onLine
+      ? 'the phone could not reach api.github.com. Nothing is wrong with the token. Try cellular instead of wifi; hotel, guest and building wifi often block it.'
+      : 'this device is offline. Entries are safe on the phone and upload when signal returns.');
+    err.network = true; throw err;
+  }
   if (r.status === 404) return { status:404, json:null };
   const text = await r.text(); let json = null; try { json = text ? JSON.parse(text) : null; } catch {}
-  if (!r.ok) { const e = new Error((json && json.message) || ('GitHub ' + r.status)); e.status = r.status; throw e; }
+  if (!r.ok) {
+    const why = { 401:'the access token was rejected. Clear the token box and paste it again; a trailing space or a smart quote is the usual cause.',
+                  403:'GitHub refused the token. It needs Contents read and write on this repository.',
+                  404:'no such repository for this token. Check the owner and repository spelling, and that the token lists this repository.',
+                  422:'GitHub rejected the request.' }[r.status];
+    const e = new Error(why || ((json && json.message) ? json.message : 'GitHub returned ' + r.status) );
+    e.status = r.status; throw e;
+  }
   return { status: r.status, json };
 }
 const repoPath = p => `/repos/${S.cfg.owner}/${S.cfg.repo}/contents/${p}`;
@@ -1802,7 +1819,10 @@ function settingsDialog(){
     <div class="acts"><button id="st_test">Test repository</button><button id="st_testai">Test assistant</button><button id="mCancel">Cancel</button><button id="mOk" class="btn-primary">Save</button></div>`, () => {
     const read = () => { S.cfg.owner = $('#st_owner').value.trim(); S.cfg.repo = $('#st_repo').value.trim(); S.cfg.token = $('#st_token').value.trim(); S.cfg.anthropicKey = $('#st_key').value.trim(); S.cfg.model = $('#st_model').value.trim() || 'claude-sonnet-5'; S.me = $('#st_me').value.trim(); saveCfg(); lsSet(LS.me, S.me); };
     $('#mCancel').onclick = closeModal;
-    $('#st_test').onclick = async () => { read(); const m = $('#st_msg'); m.textContent = 'Testing…'; try { const r = await ghTest(); m.textContent = `Connected to ${r.full_name} (${r.private ? 'private' : 'public'}).`; } catch (e) { m.textContent = 'Could not connect: ' + e.message; } };
+    $('#st_test').onclick = async () => { read(); const m = $('#st_msg');
+      if (!S.cfg.token) { m.textContent = 'No access token on this device yet. Paste the github_pat_… value into the box above, then test again.'; return; }
+      if (!S.cfg.owner || !S.cfg.repo) { m.textContent = 'Owner and data repository must both be filled in (wfletcher13 and sc-inspect-data).'; return; }
+      m.textContent = 'Testing…'; try { const r = await ghTest(); m.textContent = `Connected to ${r.full_name} (${r.private ? 'private' : 'public'}).`; } catch (e) { m.textContent = 'Could not connect: ' + (e && e.message ? e.message : 'no answer from GitHub, and the browser gave no reason. Check that the token box is not empty, then try cellular instead of wifi.'); } };
     $('#st_testai').onclick = async () => { read(); const m = $('#st_msg'); if (!S.cfg.anthropicKey) { m.textContent = 'Add an Anthropic API key first, or leave it blank to work without the assistant.'; return; } m.textContent = 'Asking Claude…'; try { const r = await anthropicCall([{ role:'user', content:'Reply with the single word: ready' }], [], undefined); const t = (r.content||[]).filter(c=>c.type==='text').map(c=>c.text).join(' ').trim(); m.textContent = 'Assistant replied: ' + (t || '(empty)') + '  ·  model ' + (r.model || S.cfg.model); } catch (e) { m.textContent = apiError(e); } };
     $('#mOk').onclick = () => { read(); closeModal(); S.ghOk = null; S.lastPull = 0; render(); if (ghConfigured() && S.online) { toast('Saved. Syncing…'); syncNow(true); } };
   });
