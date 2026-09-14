@@ -332,6 +332,7 @@ pre.prompt{font-family:var(--font-mono);font-size:11.5px;background:var(--bg4);b
 <script>
 // ───────────────────────── data model ─────────────────────────
 const SCHEMA_VERSION = 2;
+const BUILD = '2026-09-14.9f050681';
 const FAN_TYPES = ['Stair pressurization fan','Smoke exhaust fan','Make-up air unit','RTU with smoke control','AHU with smoke control','Stair vestibule fan','Elevator pressurization fan','Smoke control damper'];
 const isDamper = e => ((e && e.type) || '').toLowerCase().includes('damper');
 const isFan = e => !isDamper(e);
@@ -1604,6 +1605,7 @@ function settingsDialog(){
     <div class="row2"><div class="field"><label class="lbl" for="st_key">Anthropic API key</label><input id="st_key" type="password" value="${esc(c.anthropicKey)}" placeholder="sk-ant-…" autocapitalize="off"></div><div class="field"><label class="lbl" for="st_model">Model</label><input id="st_model" value="${esc(c.model)}" autocapitalize="off"></div></div>
     <div class="field"><label class="lbl" for="st_me">Inspector name (this device)</label><input id="st_me" value="${esc(S.me)}"></div>
     <div id="st_msg" class="small muted"></div>
+    <div class="small faint" style="margin-top:6px">App build ${BUILD}</div>
     <div class="acts"><button id="st_test">Test repository</button><button id="st_testai">Test assistant</button><button id="mCancel">Cancel</button><button id="mOk" class="btn-primary">Save</button></div>`, () => {
     const read = () => { S.cfg.owner = $('#st_owner').value.trim(); S.cfg.repo = $('#st_repo').value.trim(); S.cfg.token = $('#st_token').value.trim(); S.cfg.anthropicKey = $('#st_key').value.trim(); S.cfg.model = $('#st_model').value.trim() || 'claude-sonnet-5'; S.me = $('#st_me').value.trim(); saveCfg(); lsSet(LS.me, S.me); };
     $('#mCancel').onclick = closeModal;
@@ -1616,6 +1618,13 @@ async function boot(){
   $('#btnNewSide').onclick = newBuilding; $('#btnHomeSide').onclick = () => go('home');
   $('#btnSettingsSide').onclick = settingsDialog;
   chatInit();
+  // Heal records stored by a build that dropped the record id on sync: the store key is the truth.
+  // Without this, a device that synced before the fix keeps a broken copy forever, because an
+  // unchanged blob sha makes the next pull skip the record entirely.
+  let healed = 0;
+  for (const [k, p] of Object.entries(S.projects)) if (p && p.id !== k) { p.id = k; healed++; }
+  for (const [k, p] of Object.entries(S.base)) if (p && p.id !== k) p.id = k;
+  if (healed) persist();
   for (const [id, p] of Object.entries(S.projects)) { if ((p.schemaVersion || 1) < SCHEMA_VERSION) { S.projects[id] = normalizeProject({ ...p, id }); S.dirty.add(id); } }
   render();
   await loadPhotosCache();
