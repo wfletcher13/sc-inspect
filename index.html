@@ -255,6 +255,10 @@ td.cp{background:var(--pass-bg)} td.cf{background:var(--fail-bg)} td.cn{backgrou
 .panel-thumb{display:flex;flex-direction:column;gap:4px;align-items:flex-start;padding:6px;text-align:left;background:var(--bg3);border:1px solid var(--line);border-radius:8px;height:auto}
 .panel-img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;display:block}
 .lanes{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:6px 0;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:4px}
+.seg button{border:0;border-radius:0;background:var(--bg3);padding:8px 16px;font-size:13px;min-width:74px}
+.seg button + button{border-left:1px solid var(--line)}
+.seg button.on{background:var(--accent);color:var(--on-accent);font-weight:600}
 .chk{display:flex;align-items:center;gap:8px;font-size:13px;margin:8px 0}
 .chk input{width:auto}
 /* drawings & documents */
@@ -376,7 +380,7 @@ function qrCanvas(text, px=6){
 <script>
 // ───────────────────────── data model ─────────────────────────
 const SCHEMA_VERSION = 2;
-const BUILD = '2026-09-14.3ee9ec19';
+const BUILD = '2026-09-14.da18e488';
 const FAN_TYPES = ['Stair pressurization fan','Smoke exhaust fan','Make-up air unit','RTU with smoke control','AHU with smoke control','Stair vestibule fan','Elevator pressurization fan','Smoke control damper'];
 const isDamper = e => ((e && e.type) || '').toLowerCase().includes('damper');
 const isFan = e => !isDamper(e);
@@ -2213,16 +2217,18 @@ function settingsDialog(){
     <div class="lbl" style="margin-top:8px">Assistant (optional)</div>
     <div class="row2"><div class="field"><label class="lbl" for="st_key">Anthropic API key</label><input id="st_key" type="password" value="${esc(c.anthropicKey)}" placeholder="sk-ant-…" autocapitalize="off"></div><div class="field"><label class="lbl" for="st_model">Model</label><input id="st_model" value="${esc(c.model)}" autocapitalize="off"></div></div>
     <div class="field"><label class="lbl" for="st_me">Inspector name (this device)</label><input id="st_me" value="${esc(S.me)}"></div>
-    <div class="field"><label class="lbl" for="st_theme">Appearance (this device)</label><select id="st_theme">
-      <option value="light">Light: white and EB green (recommended in daylight)</option>
-      <option value="dark">Dark</option>
-      <option value="auto">Match the phone's setting</option></select></div>
+    <div class="field"><div class="lbl">Appearance (this device)</div>
+      <div class="seg" id="st_theme">
+        <button data-theme="light">Light</button><button data-theme="dark">Dark</button><button data-theme="auto">Auto</button>
+      </div>
+      <div class="small faint">Light reads better in daylight. Dark saves battery on a phone screen and is easier at night. Auto follows the device.</div></div>
     <div class="rowflex" style="margin-top:10px"><button id="st_scan" class="btn-primary">Scan setup code</button><button id="st_paste">Paste setup link</button><button id="st_share">Set up another device</button><button id="st_diag">Connection check</button></div>
     <div id="st_msg" class="small muted" style="margin-top:8px"></div>
     <div class="small faint" style="margin-top:6px">App build ${BUILD}</div>
     <div class="acts"><button id="st_test">Test repository</button><button id="st_testai">Test assistant</button><button id="mCancel">Cancel</button><button id="mOk" class="btn-primary">Save</button></div>`, () => {
-    $('#st_theme').value = currentTheme();
-    $('#st_theme').onchange = e => applyTheme(e.target.value);
+    const paintTheme = () => $$('#st_theme button').forEach(b => b.classList.toggle('on', b.dataset.theme === currentTheme()));
+    paintTheme();
+    $$('#st_theme button').forEach(b => b.onclick = () => { applyTheme(b.dataset.theme); paintTheme(); });
     const read = () => { S.cfg.owner = $('#st_owner').value.trim(); S.cfg.repo = $('#st_repo').value.trim(); S.cfg.token = $('#st_token').value.trim(); S.cfg.anthropicKey = $('#st_key').value.trim(); S.cfg.model = $('#st_model').value.trim() || 'claude-sonnet-5'; S.me = $('#st_me').value.trim(); saveCfg(); lsSet(LS.me, S.me); };
     $('#mCancel').onclick = closeModal;
     $('#st_scan').onclick = () => { read(); scanSetupDialog(); };
