@@ -367,7 +367,7 @@ function qrCanvas(text, px=6){
 <script>
 // ───────────────────────── data model ─────────────────────────
 const SCHEMA_VERSION = 2;
-const BUILD = '2026-09-14.ffcc9e3c';
+const BUILD = '2026-09-14.90ea3125';
 const FAN_TYPES = ['Stair pressurization fan','Smoke exhaust fan','Make-up air unit','RTU with smoke control','AHU with smoke control','Stair vestibule fan','Elevator pressurization fan','Smoke control damper'];
 const isDamper = e => ((e && e.type) || '').toLowerCase().includes('damper');
 const isFan = e => !isDamper(e);
@@ -1851,7 +1851,18 @@ function applySetup(obj){
   S.cfg.owner = obj.o; S.cfg.repo = obj.r; S.cfg.token = obj.t;
   if (obj.k) S.cfg.anthropicKey = obj.k;
   if (obj.m) S.cfg.model = obj.m;
-  saveCfg(); S.ghOk = null; S.lastPull = 0;
+  saveCfg(); persist(); S.ghOk = null; S.lastPull = 0; updateSyncBadge();
+}
+
+// Everything a device needs after taking settings in, without a trip through Settings: the config is
+// already written to this device, so this connects, pulls the buildings, and asks only for the one
+// thing that cannot be copied from another phone, which is who is holding this one.
+async function finishSetup(how){
+  toast(how + '. Connecting…');
+  try { const r = await ghTest(); toast(`Connected to ${r.full_name}. Loading the buildings…`); await syncNow(true); }
+  catch (e) { toast('Saved on this device, but could not connect: ' + (e && e.message ? e.message : 'no answer from GitHub.')); }
+  render();
+  if (!S.me) promptBox('Who is using this device?', 'Inspector name (stamps your entries)', '', 'Save', v => { S.me = v; lsSet(LS.me, v); saveCfg(); toast('Ready. Nothing else to set up.'); render(); });
 }
 
 // Shown on a device that is already working.
@@ -1883,9 +1894,7 @@ function pasteSetupDialog(){
     $('#mOk').onclick = async () => {
       const m = $('#ps_msg');
       let obj; try { obj = parseSetup($('#ps_in').value); } catch (e) { m.textContent = e.message; return; }
-      applySetup(obj); m.textContent = 'Checking the connection…';
-      try { const r = await ghTest(); m.textContent = `Connected to ${r.full_name}.`; closeModal(); toast('This device is set up. Loading the buildings…'); syncNow(true); }
-      catch (e) { m.textContent = 'Saved, but the check failed: ' + (e && e.message ? e.message : 'no answer from GitHub.'); }
+      applySetup(obj); closeModal(); finishSetup('Saved on this device');
     };
   });
 }
@@ -1933,10 +1942,7 @@ async function scanSetupDialog(){
       if (hit && hit.data) {
         let obj = null; try { obj = parseSetup(hit.data); } catch (e) { msg('That code is not an SC Inspect setup code.'); }
         if (obj) {
-          stop(); applySetup(obj); closeModal(); toast('Scanned. Connecting…');
-          ghTest().then(() => { syncNow(true); toast('This device is set up. Loading the buildings…'); })
-                  .catch(e => toast('Scanned, but could not connect: ' + (e.message || '')));
-          render(); return;
+          stop(); applySetup(obj); closeModal(); finishSetup('Scanned and saved'); return;
         }
       }
     }
@@ -1952,9 +1958,7 @@ function setupFromHash(){
   let obj; try { obj = parseSetup(h); } catch { return false; }
   history.replaceState(null, '', location.pathname + location.search);   // keep the token out of the address bar
   confirmBox('Set up this device?', `This link sets this device up for <b>${esc(obj.o)}/${esc(obj.r)}</b> and installs an access token for the inspection data. Only accept it if you asked for it.`, 'Set up', async () => {
-    applySetup(obj); toast('Setting up…');
-    try { await ghTest(); syncNow(true); toast('Connected. Loading the buildings…'); } catch (e) { toast('Saved, but could not connect: ' + (e.message || '')); }
-    render();
+    applySetup(obj); finishSetup('Saved on this device');
   });
   return true;
 }
