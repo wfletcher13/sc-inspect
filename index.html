@@ -382,6 +382,9 @@ function normalizeProject(raw, fallbackName){
   p.name = p.name || p.info.building || 'Imported building';
   p.schemaVersion = SCHEMA_VERSION;
   if (!p.status) p.status = 'active';
+  // Keep the record's own id. The import path reassigns it only when it would collide;
+  // a pulled record MUST keep the id it has in the repository or the app cannot open it.
+  if (typeof src.id === 'string' && src.id) p.id = src.id;
   if (typeof p.id !== 'string' || !p.id) p.id = uid('p');
   return p;
 }
@@ -680,6 +683,7 @@ function updateSyncBadge(){
   const m = document.getElementById('mSync'); if (m) { m.className = 'sync ' + st; m.querySelector('span:last-child').textContent = txt; }
 }
 function adoptRemote(id, remote, sha){
+  remote = { ...remote, id };            // the store key and the record's id are the same thing
   const local = S.projects[id];
   if (S.dirty.has(id) && local) S.projects[id] = threeWayMerge(S.base[id], local, remote);
   else S.projects[id] = clone(remote);
