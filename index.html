@@ -371,7 +371,7 @@ function qrCanvas(text, px=6){
 <script>
 // ───────────────────────── data model ─────────────────────────
 const SCHEMA_VERSION = 2;
-const BUILD = '2026-09-14.16f5a6b6';
+const BUILD = '2026-09-14.def08141';
 const FAN_TYPES = ['Stair pressurization fan','Smoke exhaust fan','Make-up air unit','RTU with smoke control','AHU with smoke control','Stair vestibule fan','Elevator pressurization fan','Smoke control damper'];
 const isDamper = e => ((e && e.type) || '').toLowerCase().includes('damper');
 const isFan = e => !isDamper(e);
@@ -1381,31 +1381,6 @@ function bindDefic(root, p){
   });
 }
 
-// ───────────────────────── Open items (_meta.conflicts) ─────────────────────────
-function viewItems(p){
-  const items = p._meta.conflicts || [];
-  const open = items.filter(c => c.status !== 'resolved' && c.status !== 'na');
-  const pcls = { Critical:'b-crit', High:'b-def', Medium:'b-obs', Low:'b-note' };
-  const groups = {}; items.forEach(c => (groups[c.category || 'General'] = groups[c.category || 'General'] || []).push(c));
-  const body = `<div class="stats"><div class="stat ${open.length?'warn':'pass'}"><b>${open.length}</b><span>Open</span></div><div class="stat pass"><b>${items.filter(c => c.status === 'resolved').length}</b><span>Resolved</span></div><div class="stat"><b>${items.length}</b><span>Total</span></div></div>
-    <p class="hint">Items carried in from the intake (conflicts between drawings, panel and narrative; things to field-verify). Mark each one as you confirm it in the field; the Open Items log picks up the status and notes.</p>
-    <button class="btn-primary" id="oiAdd">+ Add item</button>
-    ${Object.entries(groups).sort().map(([cat, cs]) => `<div class="lbl" style="margin:14px 0 6px">${esc(cat)}</div>${cs.map(c => { const idx = items.indexOf(c); return `<div class="oi ${c.status === 'resolved' || c.status === 'na' ? 'resolved' : ''}"><div class="oi-h"><b>${esc(c.item)}</b><span class="badge ${pcls[c.priority]||'b-note'}">${esc(c.priority||'')}</span><button class="btn-sm btn-ghost" data-oidel="${idx}" title="Remove">✕</button></div>
-      ${c.known ? `<p><span class="faint">Known:</span> ${esc(c.known)}</p>` : ''}${c.action ? `<p><span class="faint">Action:</span> ${esc(c.action)}</p>` : ''}
-      <div class="st"><button data-oist="${idx}|open" class="btn-sm ${!c.status || c.status==='open' ? 'on' : ''}">Open</button><button data-oist="${idx}|resolved" class="btn-sm ${c.status==='resolved'?'on':''}">Resolved</button><button data-oist="${idx}|na" class="btn-sm ${c.status==='na'?'on':''}">N/A</button><span class="small faint">${c.resolvedBy ? esc(c.resolvedBy) + ' · ' + esc(fmtDate(c.resolvedAt)) : ''}</span></div>
-      <input data-k="oi.${c.id}" data-path="_meta.conflicts.${idx}.resolution" value="${esc(c.resolution||'')}" placeholder="Field finding / resolution note" style="margin-top:6px"></div>`; }).join('')}`).join('') || '<div class="empty">No open items on this record.</div>'}`;
-  return sec('o_a', `Open items & discrepancies (${open.length} open)`, body);
-}
-function oiForm(){
-  modal(`<h3>Add open item</h3><div class="row2"><div class="field"><label class="lbl" for="o_cat">Category</label><input id="o_cat" placeholder="e.g. C.  Lower-Level Zone & Tag Discrepancies"></div><div class="field"><label class="lbl" for="o_pri">Priority</label><select id="o_pri"><option>Critical</option><option>High</option><option selected>Medium</option><option>Low</option></select></div></div>
-    <div class="field"><label class="lbl" for="o_item">Item</label><input id="o_item"></div><div class="field"><label class="lbl" for="o_known">What is known</label><textarea id="o_known"></textarea></div><div class="field"><label class="lbl" for="o_act">Action to resolve</label><textarea id="o_act" style="min-height:48px"></textarea></div>
-    <div class="acts"><button id="mCancel">Cancel</button><button id="mOk" class="btn-primary">Add</button></div>`, () => { $('#mCancel').onclick = closeModal; $('#mOk').onclick = () => { const item = $('#o_item').value.trim(); if (!item) return; updateProject(S.currentId, p => { p._meta.conflicts.push({ id: uid('c'), category: $('#o_cat').value.trim() || 'General', item, known: $('#o_known').value.trim(), action: $('#o_act').value.trim(), priority: $('#o_pri').value, status:'open', resolution:'' }); return p; }); closeModal(); }; });
-}
-function bindItems(root){
-  $('#oiAdd', root).onclick = oiForm;
-  $$('[data-oist]', root).forEach(b => b.onclick = () => { const [idx, st] = b.dataset.oist.split('|'); updateProject(S.currentId, p => { const c = p._meta.conflicts[+idx]; c.status = st; if (st !== 'open') { c.resolvedBy = S.me || ''; c.resolvedAt = todayISO(); } else { c.resolvedBy = ''; c.resolvedAt = ''; } return p; }, { keepFocus:true }); });
-  $$('[data-oidel]', root).forEach(b => b.onclick = () => confirmBox('Remove this open item?', '', 'Remove', () => updateProject(S.currentId, p => { p._meta.conflicts.splice(+b.dataset.oidel, 1); return p; }), true));
-}
 
 </script>
 <script>
@@ -1464,9 +1439,13 @@ function projectBrief(p){
     `Deficiencies (${p.deficiencies.length}): ` + p.deficiencies.map(d => `[${d.id}] ${d.sev} @ ${d.loc}: ${d.desc} -> ${d.action}`).join('\n'),
     p.sequence.length ? `Sequence of operations: ` + p.sequence.map(s => `${s.trigger} -> ${s.response} [${(s.equipment||[]).join(',')}] ${s.floors}`).join('\n') : '',
     p.sequenceNotes ? `Special floor notes: ${p.sequenceNotes}` : '', p.notes ? `General notes: ${p.notes}` : '',
+    // Kept as background for the assistant: questions raised at intake about what the drawings, panel
+    // and narrative disagreed about. Not a task list, not shown in the app, and not in any document.
+    ((p._meta || {}).conflicts || []).length ? `Intake questions on this building (background only, may already be settled): ` +
+      p._meta.conflicts.map(c => `${c.item}${c.known ? ' (' + c.known + ')' : ''}${c.status && c.status !== 'open' ? ' [' + c.status + ']' : ''}${c.resolution ? ' note: ' + c.resolution : ''}`).join('; ') : '',
   ].filter(Boolean).join('\n');
 }
-const RULES = `You are the field assistant inside SC Inspect, EB Life Safety's smoke control inspection record. Answer briefly and plainly for an inspector on site. Use the tools to change the record only when the inspector clearly asks for a change; confirm exactly what you changed (tag, test, floor, value). Result values are pass, fail, na or empty. When something is ambiguous (which stair, which floor), ask one short question instead of guessing. Never invent results. Do not use em dashes.`;
+const RULES = `You are the field assistant inside SC Inspect, EB Life Safety's smoke control inspection record. Answer briefly and plainly for an inspector on site. Use the tools to change the record only when the inspector clearly asks for a change; confirm exactly what you changed (tag, test, floor, value). Result values are pass, fail, na or empty. When something is ambiguous (which stair, which floor), ask one short question instead of guessing. Never invent results. Intake questions in the brief are background from before the inspection: use them to explain what to look at, never as a checklist to work through, and never repeat them unasked. Do not use em dashes.`;
 function chatTools(){
   const id = () => S.currentId; const P = () => cur();
   const norm = v => ({ p:'pass', pass:'pass', f:'fail', fail:'fail', n:'na', na:'na', 'n/a':'na', '':'', clear:'' })[String(v||'').toLowerCase()] ?? null;
