@@ -254,6 +254,20 @@ td.cp{background:var(--pass-bg)} td.cf{background:var(--fail-bg)} td.cn{backgrou
 .panel-shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:10px}
 .panel-thumb{display:flex;flex-direction:column;gap:4px;align-items:flex-start;padding:6px;text-align:left;background:var(--bg3);border:1px solid var(--line);border-radius:8px;height:auto}
 .panel-img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;display:block}
+.findbox{width:auto;flex:1;min-width:170px;padding:7px 10px;font-size:13px}
+.eqa{border:1px solid var(--line);border-radius:var(--r);background:var(--bg2);margin-bottom:8px;overflow:hidden}
+.eqa-h{width:100%;display:flex;align-items:center;gap:10px;padding:11px 12px;background:var(--bg2);border:0;border-radius:0;text-align:left;min-height:46px}
+.eqa-h .tag{font-size:14px;flex-shrink:0}
+.eqa-sub{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eqa-st{font-size:11px;font-weight:700;letter-spacing:.03em;padding:2px 8px;border-radius:10px;background:var(--bg4);border:1px solid var(--line);color:var(--ink3);flex-shrink:0}
+.eqa-st.pass{background:var(--pass-bg);border-color:var(--pass-bd);color:var(--pass)}
+.eqa-st.fail{background:var(--fail-bg);border-color:var(--fail-bd);color:var(--fail)}
+.eqa-st.part{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn)}
+.eqa .chev{flex-shrink:0;transition:transform .15s;color:var(--ink3)}
+.eqa.on .chev{transform:rotate(180deg)}
+.eqa-b{display:none;padding:0 12px 10px;border-top:1px solid var(--line)}
+.eqa.on .eqa-b{display:block}
+@media (max-width:560px){ .eqa-sub{display:none} }
 .lanes{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:6px 0;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line)}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:4px}
 .seg button{border:0;border-radius:0;background:var(--bg3);padding:8px 16px;font-size:13px;min-width:74px}
@@ -387,7 +401,7 @@ function qrCanvas(text, px=6){
 <script>
 // ───────────────────────── data model ─────────────────────────
 const SCHEMA_VERSION = 2;
-const BUILD = '2026-09-14.d8f45238';
+const BUILD = '2026-09-14.840d9f1e';
 const FAN_TYPES = ['Stair pressurization fan','Smoke exhaust fan','Make-up air unit','RTU with smoke control','AHU with smoke control','Stair vestibule fan','Elevator pressurization fan','Smoke control damper'];
 const isDamper = e => ((e && e.type) || '').toLowerCase().includes('damper');
 const isFan = e => !isDamper(e);
@@ -655,7 +669,7 @@ const S = {
   online: navigator.onLine, syncing: false, lastPull: 0, ghOk: null, ghError: '',
   photos: {},                            // photoId -> {dataUrl, caption, ts, projectId, pending}
   currentId: null, view: 'home', homeTab: 'active', pressMode: 'shaft', pressSub: 0,
-  chat: [], chatBusy: false,
+  chat: [], chatBusy: false, seqFilter: '',
 };
 const ui = lsGet(LS.ui, {}); S.currentId = ui.currentId || null; S.view = ui.view || 'home'; S.pressMode = ui.pressMode || 'shaft';
 function persist(){ lsSet(LS.projects, S.projects); lsSet(LS.base, S.base); lsSet(LS.shas, S.shas); lsSet(LS.dirty, [...S.dirty]); lsSet(LS.ui, { currentId:S.currentId, view:S.view, pressMode:S.pressMode }); }
@@ -1036,7 +1050,7 @@ function go(view, id){ if (id !== undefined) S.currentId = id; S.view = view; pe
 function render(opts={}){
   const p = cur();
   if (S.view !== 'home' && (!p || p.status === 'trash')) { S.view = 'home'; }
-  const active = document.activeElement; const focusKey = opts.keepFocus && active && active.dataset && active.dataset.k ? active.dataset.k : null;
+  const active = document.activeElement; const focusKey = opts.keepFocus && active && active.dataset && active.dataset.k ? active.dataset.k : (opts.keepFocus && active && active.id === 'eqFind' ? '#eqFind' : null);
   const selStart = focusKey && active.selectionStart != null ? active.selectionStart : null;
   const scrollTop = $('#scroll').scrollTop;
   renderNav(); renderTopbar();
@@ -1047,7 +1061,7 @@ function render(opts={}){
   bindCommon(v); bindView(v, cp);
   $('#chatFab').hidden = !cp || S.view === 'home';
   $('#scroll').scrollTop = scrollTop;
-  if (focusKey) { const el = v.querySelector(`[data-k="${focusKey}"]`); if (el) { el.focus(); if (selStart != null && el.setSelectionRange) try { el.setSelectionRange(selStart, selStart); } catch {} } }
+  if (focusKey) { const el = focusKey === '#eqFind' ? v.querySelector('#eqFind') : v.querySelector(`[data-k="${focusKey}"]`); if (el) { el.focus(); if (selStart != null && el.setSelectionRange) try { el.setSelectionRange(selStart, selStart); } catch {} } }
   updateSyncBadge();
 }
 function renderNav(){
@@ -1278,13 +1292,64 @@ function bindEquip(root, p){
 
 // ───────────────────────── Sequence tests ─────────────────────────
 function rr(name, ev, exp, val, pfAttr){ return `<div class="rr"><div class="rr-info"><div class="rr-name">${name}</div>${ev ? `<div class="rr-ev">${ev}</div>` : ''}${exp ? `<div class="rr-exp">${exp}</div>` : ''}</div>${pfn(val, pfAttr)}</div>`; }
+const seqOpen = lsGet('scv5_seqopen', {});
+const setSeqOpen = (tag, v) => { if (v) seqOpen[tag] = 1; else delete seqOpen[tag]; lsSet('scv5_seqopen', seqOpen); };
+function bindSeq(root, p){
+  $$('[data-eqtog]', root).forEach(b => b.onclick = () => {
+    const tag = b.dataset.eqtog, box = b.parentElement;
+    const now = !box.classList.contains('on');
+    box.classList.toggle('on', now); setSeqOpen(tag, now);
+  });
+  const find = $('#eqFind', root);
+  if (find) find.addEventListener('input', () => { S.seqFilter = find.value; render({ keepFocus:true }); });
+  const clr = $('#eqClear', root); if (clr) clr.onclick = () => { S.seqFilter = ''; render(); };
+  const all = v => { p.equipment.forEach(e => setSeqOpen(e.tag, v)); render({ keepFocus:true }); };
+  const ex = $('#eqExpand', root); if (ex) ex.onclick = () => all(true);
+  const col = $('#eqCollapse', root); if (col) col.onclick = () => all(false);
+  const nx = $('#eqNext', root);
+  if (nx) nx.onclick = () => {
+    const e = p.equipment.find(x => getSeqTests(x).some((_,ti) => !seqGet(p, x, ti)));
+    if (!e) return toast('Every device has a result.');
+    p.equipment.forEach(x => setSeqOpen(x.tag, x.tag === e.tag));
+    render();
+    const el = document.querySelector(`[data-eqa="${CSS.escape(e.tag)}"]`);
+    if (el) el.scrollIntoView({ block:'start', behavior:'smooth' });
+    toast('Next untested: ' + e.tag);
+  };
+}
 function viewSeq(p){
   let pass = 0, fail = 0;
   p.equipment.forEach(e => getSeqTests(e).forEach((_,ti) => { const v = seqGet(p,e,ti); if (v === 'pass') pass++; if (v === 'fail') fail++; }));
-  const eqCards = p.equipment.length ? p.equipment.map(e => `<div class="card"><div style="display:flex;gap:8px;align-items:baseline;margin-bottom:4px"><span class="tag" style="font-size:14px">${esc(e.tag)}</span><span class="small faint">${esc(e.type)}${e.location ? ' · ' + esc(e.location) : ''}</span></div>${getSeqTests(e).map((t,ti) => rr(esc(t.action), esc(t.event), esc(t.exp), seqGet(p,e,ti), `data-pf="seqResults|${esc(seqKey(e,ti))}"`)).join('')}</div>`).join('') : '<div class="empty">Add equipment first.</div>';
+  // One collapsed row per device. A tower with forty fans is otherwise a very long scroll, and in
+  // the field you work one device at a time.
+  const q = (S.seqFilter || '').trim().toLowerCase();
+  const match = e => !q || [e.tag, e.type, e.location, e.zone, e.room].filter(Boolean).some(v => String(v).toLowerCase().includes(q));
+  const shown = p.equipment.filter(match);
+  const eqCards = p.equipment.length ? (shown.length ? shown.map(e => {
+    const tests = getSeqTests(e);
+    const vals = tests.map((_,ti) => seqGet(p,e,ti));
+    const done = vals.filter(Boolean).length, f = vals.filter(v => v === 'fail').length;
+    const state = f ? 'fail' : done === 0 ? '' : done < tests.length ? 'part' : 'pass';
+    const label = f ? `${f} fail` : done === 0 ? 'not started' : done < tests.length ? `${done}/${tests.length}` : 'complete';
+    const open = !!seqOpen[e.tag];
+    return `<div class="eqa${open?' on':''}" data-eqa="${esc(e.tag)}">
+      <button class="eqa-h" data-eqtog="${esc(e.tag)}">
+        <span class="tag">${esc(e.tag)}</span>
+        <span class="small faint eqa-sub">${esc(e.type)}${e.location ? ' · ' + esc(e.location) : ''}</span>
+        <span class="eqa-st ${state}">${esc(label)}</span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="eqa-b">${tests.map((t,ti) => rr(esc(t.action), esc(t.event), esc(t.exp), vals[ti], `data-pf="seqResults|${esc(seqKey(e,ti))}"`)).join('')}</div>
+    </div>`;
+  }).join('') : `<div class="empty">No device matches "${esc(S.seqFilter)}".</div>`) : '<div class="empty">Add equipment first.</div>';
+  const eqTools = p.equipment.length ? `<div class="rowflex" style="margin-bottom:10px">
+      <input id="eqFind" class="findbox" value="${esc(S.seqFilter || '')}" placeholder="Find a tag, type or location" autocapitalize="off" spellcheck="false">
+      ${q ? '<button class="btn-sm" id="eqClear">Clear</button>' : ''}
+      <button class="btn-sm" id="eqExpand">Open all</button><button class="btn-sm" id="eqCollapse">Close all</button><button class="btn-sm" id="eqNext">Next untested</button>
+      <span class="small faint">${shown.length} of ${p.equipment.length}</span></div>` : '';
   const stats = (pass+fail) ? `<div class="stats"><div class="stat pass"><b>${pass}</b><span>Pass</span></div><div class="stat ${fail?'fail':'pass'}"><b>${fail}</b><span>Fail</span></div></div>` : '';
   const cats = {}; VISUAL_ITEMS.forEach(v => (cats[v.cat] = cats[v.cat] || []).push(v));
-  return sec('q_eq', 'Equipment panel tests (Appendix A-1)', stats + eqCards)
+  return sec('q_eq', 'Equipment panel tests (Appendix A-1)', stats + eqTools + eqCards)
     + sec('q_fault', 'Fault conditions', FAULT_TESTS.map(f => rr(esc(f.lbl), f.id === 'f3' && !p.systems.weekly ? 'N/A, not required per AHJ' : esc(f.ev), '', p.seqResults[f.id]||'', `data-pf="seqResults|${f.id}"`)).join(''), { open:false })
     + sec('q_ep', 'Emergency power', EMERG_TESTS.map(f => rr(esc(f.lbl), esc(f.ev), '', p.seqResults[f.id]||'', `data-pf="seqResults|${f.id}"`)).join(''), { open:false })
     + sec('q_init', 'Initiating devices', INIT_TESTS.map(f => rr(esc(f.lbl), f.id === 'i2' && !p.systems.wflow ? 'Not tested / deferred to annual inspections' : esc(f.ev), '', p.seqResults[f.id]||'', `data-pf="seqResults|${f.id}"`)).join(''), { open:false })
@@ -2259,7 +2324,7 @@ async function diagnosticsDialog(){
 function bindView(root, p){
   if (S.view === 'home') return bindHome(root);
   if (!p) return;
-  ({ setup:bindSetup, equip:bindEquip, seq:() => {}, matrix:() => {}, zones:() => {}, press:bindPress, defic:bindDefic, files:bindFiles, reports:bindReports })[S.view](root, p);
+  ({ setup:bindSetup, equip:bindEquip, seq:bindSeq, matrix:() => {}, zones:() => {}, press:bindPress, defic:bindDefic, files:bindFiles, reports:bindReports })[S.view](root, p);
 }
 function settingsDialog(){
   const c = S.cfg;
