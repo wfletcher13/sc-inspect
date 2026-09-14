@@ -246,6 +246,7 @@ td.cp{background:var(--pass-bg)} td.cf{background:var(--fail-bg)} td.cn{backgrou
 .rep p{margin:0;font-size:12.5px;color:var(--ink2)}
 .scan{background:#000;border-radius:8px;overflow:hidden;aspect-ratio:3/4;max-height:52vh;display:grid;place-items:center}
 .scan video{width:100%;height:100%;object-fit:cover}
+.lanes{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:6px 0;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line)}
 .chk{display:flex;align-items:center;gap:8px;font-size:13px;margin:8px 0}
 .chk input{width:auto}
 /* drawings & documents */
@@ -367,7 +368,7 @@ function qrCanvas(text, px=6){
 <script>
 // ───────────────────────── data model ─────────────────────────
 const SCHEMA_VERSION = 2;
-const BUILD = '2026-09-14.90ea3125';
+const BUILD = '2026-09-14.e9355ec1';
 const FAN_TYPES = ['Stair pressurization fan','Smoke exhaust fan','Make-up air unit','RTU with smoke control','AHU with smoke control','Stair vestibule fan','Elevator pressurization fan','Smoke control damper'];
 const isDamper = e => ((e && e.type) || '').toLowerCase().includes('damper');
 const isFan = e => !isDamper(e);
@@ -644,7 +645,7 @@ const ghConfigured = () => !!(S.cfg.owner && S.cfg.repo && S.cfg.token);
 
 // ── merge rules (three-way, field level; filled beats blank) ──
 const SCALAR_OBJ = ['info','systems'];
-const SCALAR_PLAIN = ['name','status','deletedAt','completedAt','sequenceNotes','notes','stairwells','hoistways','created'];
+const SCALAR_PLAIN = ['name','status','deletedAt','completedAt','sequenceNotes','notes','stairwells','hoistways','created','parentId','lane','mergedAt','mergedInto','_merges'];
 const MAP_FIELDS = ['seqResults','matrixResults','zoneResults','floors'];
 const KEYED = { equipment:'tag', deficiencies:'id', sequence:'id', files:'id' };
 const same = (a,b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
@@ -1059,7 +1060,7 @@ function newBuilding(){ promptBox('New building', 'Building name', '', 'Create',
 // ───────────────────────── Home ─────────────────────────
 function fmtDate(iso){ if (!iso) return ''; try { return new Date(iso).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }); } catch { return ''; } }
 function viewHome(){
-  const all = Object.values(S.projects);
+  const all = Object.values(S.projects).filter(p => !isLane(p));      // field copies show under their building
   const active = all.filter(p => p.status === 'active'), done = all.filter(p => p.status === 'completed'), trash = all.filter(p => p.status === 'trash');
   const list = S.homeTab === 'active' ? active : S.homeTab === 'completed' ? done : trash;
   const inProg = active.filter(p => hasResults(p)).length;
@@ -1074,11 +1075,12 @@ function viewHome(){
       <div><h3>${esc(p.name || 'Untitled')}</h3><div class="addr">${esc(p.info.address || 'No address yet')}</div></div>
       <div class="meta"><span>Test ${esc(fmtDate(p.info.date) || 'not set')}</span><span>Levels ${esc(p.info.floorLow)}–${esc(p.info.floorHigh || '?')}</span><span>${p.equipment.length} devices</span>${dirty ? '<span class="flag">unsynced</span>' : ''}</div>
       <div class="small muted">${esc(sysChips || 'No systems selected')}</div>
+      ${laneStrip(p)}
       <div><div class="prog"><i style="width:${pr.pct}%"></i></div><div class="small faint mono" style="margin-top:3px">${pr.done}/${pr.total} results · ${p.deficiencies.length} deficienc${p.deficiencies.length===1?'y':'ies'}${pr.fails?` · <span class="flag">${pr.fails} fail</span>`:''}</div></div>
       <div class="acts">
         ${p.status === 'trash' ? `<button class="btn-sm" data-act="restore" data-id="${p.id}">Restore</button><button class="btn-sm btn-danger" data-act="purge" data-id="${p.id}">Delete forever</button>`
         : p.status === 'completed' ? `<button class="btn-sm btn-primary" data-act="open" data-id="${p.id}">Open</button><button class="btn-sm" data-act="reactivate" data-id="${p.id}">Back to active</button><button class="btn-sm" data-act="export" data-id="${p.id}">Export JSON</button>`
-        : `<button class="btn-sm btn-primary" data-act="open" data-id="${p.id}">Open</button><button class="btn-sm" data-act="rename" data-id="${p.id}">Rename</button><button class="btn-sm" data-act="export" data-id="${p.id}">Export JSON</button><button class="btn-sm" data-act="complete" data-id="${p.id}">Mark complete</button><button class="btn-sm btn-ghost" data-act="trash" data-id="${p.id}" title="Move to trash">Trash</button>`}
+        : `<button class="btn-sm btn-primary" data-act="open" data-id="${p.id}">Open</button><button class="btn-sm" data-act="lane" data-id="${p.id}">Work as my own copy</button>${lanesOf(p.id).length ? `<button class="btn-sm" data-act="merge" data-id="${p.id}">Merge copies (${lanesOf(p.id).length})</button>` : ''}<button class="btn-sm" data-act="rename" data-id="${p.id}">Rename</button><button class="btn-sm" data-act="export" data-id="${p.id}">Export JSON</button><button class="btn-sm" data-act="complete" data-id="${p.id}">Mark complete</button><button class="btn-sm btn-ghost" data-act="trash" data-id="${p.id}" title="Move to trash">Trash</button>`}
       </div></div>`;
   };
   return `<div class="hero"><div><h2>Buildings</h2><p>${active.length} active · ${inProg} with results entered · ${done.length} completed</p></div>
@@ -1095,6 +1097,8 @@ function bindHome(root){
   $$('[data-act]', root).forEach(b => b.onclick = () => {
     const id = b.dataset.id, p = S.projects[id]; const act = b.dataset.act;
     if (act === 'open') go('setup', id);
+    else if (act === 'lane') promptBox('Work as your own copy', 'Whose copy is this?', S.me || '', 'Create', who => { const c = createLane(id, who); if (c) { if (!S.me) { S.me = who; lsSet(LS.me, who); } toast(`Created ${c.name}. Everything you enter stays in this copy until it is merged.`); go('setup', c.id); } });
+    else if (act === 'merge') mergeDialog(id);
     else if (act === 'rename') promptBox('Rename building', 'Name', p.name, 'Save', v => updateProject(id, x => { x.name = v; if (!x.info.building) x.info.building = v; return x; }));
     else if (act === 'export') exportProject(p);
     else if (act === 'complete') updateProject(id, x => { x.status = 'completed'; x.completedAt = new Date().toISOString(); return x; });
@@ -1816,6 +1820,169 @@ function openFileViewer(f, data){
       const file = new File([blob], f.name, { type: blob.type });
       if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: f.name }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
       const a = document.createElement('a'); a.href = url; a.download = f.name; a.click();
+    };
+  });
+}
+
+</script>
+<script>
+// ───────────────────────── field copies and the end-of-day merge ─────────────────────────
+// Two inspectors testing the same tower at once should not be writing into one record and trusting a
+// merge they never see. Each takes a field copy: a record of its own, syncing on its own, incapable
+// of touching anyone else's entries. At the end of the day the copies are merged back into the
+// building, and anything the two of them answered differently is put in front of a person.
+const laneName = p => p.lane || 'field copy';
+const isLane = p => !!p.parentId;
+const lanesOf = id => Object.values(S.projects).filter(p => p.parentId === id && p.status !== 'trash' && !p.mergedAt);
+const mergedLanesOf = id => Object.values(S.projects).filter(p => p.parentId === id && p.mergedAt);
+
+function createLane(parentId, who){
+  const parent = S.projects[parentId]; if (!parent) return null;
+  const c = clone(parent);
+  c.id = parentId + '__' + (who.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || uid(''));
+  if (S.projects[c.id]) { toast(who + ' already has a field copy of this building.'); return S.projects[c.id]; }
+  c.parentId = parentId; c.lane = who; c.mergedAt = '';
+  c.name = parent.name + ' (' + who + ')';   // the naming protocol the field team already uses
+  c.created = c.updated = new Date().toISOString();
+  // results start empty: a field copy carries the building, not anyone else's answers
+  c.seqResults = {}; c.matrixResults = {}; c.zoneResults = {}; c.floors = {}; c.deficiencies = []; c._conflicts = [];
+  c.info = { ...parent.info, inspector: who };
+  S.projects[c.id] = c; S.dirty.add(c.id); persist(); scheduleSync();
+  return c;
+}
+
+// ── what a merge would do ──
+// Anything only one person answered is taken. Anything two answered the same way is agreement.
+// Anything two answered differently is a disagreement, and a person decides.
+const RESULT_MAPS = ['seqResults','matrixResults','zoneResults'];
+function planMerge(parent, lanes){
+  const takes = [], clashes = [];
+  const note = (path, label, value, from) => takes.push({ path, label, value, from });
+  for (const map of RESULT_MAPS) {
+    const keys = new Set(lanes.flatMap(l => Object.keys(l[map] || {})));
+    for (const k of keys) {
+      const answers = lanes.map(l => ({ who: laneName(l), v: (l[map] || {})[k] })).filter(a => a.v !== '' && a.v != null);
+      if (!answers.length) continue;
+      const base = (parent[map] || {})[k] || '';
+      const distinct = [...new Set(answers.map(a => a.v))];
+      if (distinct.length > 1) clashes.push({ kind:'map', map, key:k, label: resultLabel(parent, map, k), base, answers });
+      else if (distinct[0] !== base) note(map + '.' + k, resultLabel(parent, map, k), distinct[0], answers.map(a => a.who).join(' and '));
+    }
+  }
+  // pressure and door forces: one row per location, several readings on each row
+  const floorKeys = new Set(lanes.flatMap(l => Object.keys(l.floors || {})));
+  for (const k of floorKeys) {
+    const fields = new Set(lanes.flatMap(l => Object.keys((l.floors || {})[k] || {})));
+    for (const f of fields) {
+      const answers = lanes.map(l => ({ who: laneName(l), v: (((l.floors || {})[k]) || {})[f] })).filter(a => a.v !== '' && a.v != null);
+      if (!answers.length) continue;
+      const base = ((parent.floors || {})[k] || {})[f] ?? '';
+      const distinct = [...new Set(answers.map(a => String(a.v)))];
+      if (distinct.length > 1) clashes.push({ kind:'floor', key:k, field:f, label: `${k.replace(/_/g,' ')} · ${FLOOR_FIELDS[f] || f}`, base, answers });
+      else if (String(distinct[0]) !== String(base)) note(`floors.${k}.${f}`, `${k.replace(/_/g,' ')} · ${FLOOR_FIELDS[f] || f}`, answers[0].v, answers.map(a => a.who).join(' and '));
+    }
+  }
+  // deficiencies, open-item status, attachments and equipment additions are all additive
+  const newDefs = [], openUpd = [], newFiles = [], newEquip = [];
+  for (const l of lanes) {
+    for (const d of (l.deficiencies || [])) if (!parent.deficiencies.some(x => x.id === d.id)) newDefs.push({ ...d, _by: laneName(l) });
+    for (const f of (l.files || [])) if (!(parent.files || []).some(x => x.id === f.id)) newFiles.push({ ...f, _by: laneName(l) });
+    for (const e of (l.equipment || [])) if (!parent.equipment.some(x => x.tag === e.tag)) newEquip.push({ ...e, _by: laneName(l) });
+    for (const c of ((l._meta || {}).conflicts || [])) {
+      const pc = (parent._meta.conflicts || []).find(x => x.id === c.id);
+      if (pc && (c.status !== pc.status || (c.resolution || '') !== (pc.resolution || '')) && (c.status !== 'open' || c.resolution)) openUpd.push({ ...c, _by: laneName(l) });
+    }
+  }
+  return { takes, clashes, newDefs, openUpd, newFiles, newEquip,
+           total: takes.length + newDefs.length + openUpd.length + newFiles.length + newEquip.length };
+}
+const FLOOR_FIELDS = { dp:'pressure difference', brk:'door opening force', swg:'closing force', cl:'closer / latching' };
+function resultLabel(p, map, key){
+  if (map === 'zoneResults') { const [zone, what] = key.split(/_(fans|dampers|isolate)$/); return `${zone} ${what || ''}`.trim(); }
+  if (map === 'matrixResults') return 'matrix ' + key.replace(/_/g, ' ');
+  const t = [...VISUAL_ITEMS, ...FAULT_TESTS, ...EMERG_TESTS, ...INIT_TESTS].find(x => x.id === key);
+  if (t) return t.label || t.id;
+  const m = /^(.+)_(\d+)$/.exec(key);
+  if (m) { const e = p.equipment.find(x => x.tag === m[1]); const tests = e ? getSeqTests(e) : []; return `${m[1]} · ${(tests[+m[2]] || {}).action || 'test ' + m[2]}`; }
+  return key;
+}
+
+function applyMerge(parentId, plan, picks){
+  updateProject(parentId, p => {
+    for (const t of plan.takes) setPath(p, t.path, t.value);
+    plan.clashes.forEach((c, i) => {
+      const chosen = picks[i]; if (chosen === undefined || chosen === null) return;     // left alone on purpose
+      if (c.kind === 'map') p[c.map][c.key] = chosen;
+      else { p.floors[c.key] = p.floors[c.key] || {}; p.floors[c.key][c.field] = chosen; }
+    });
+    for (const d of plan.newDefs) p.deficiencies.push(stripBy(d));
+    for (const f of plan.newFiles) p.files = [...(p.files || []), stripBy(f)];
+    for (const e of plan.newEquip) p.equipment.push(stripBy(e));
+    for (const c of plan.openUpd) { const pc = (p._meta.conflicts || []).find(x => x.id === c.id); if (pc) { pc.status = c.status; pc.resolution = c.resolution || pc.resolution; } }
+    p._merges = [...(p._merges || []), { at: new Date().toISOString(), by: S.me || S.clientId, lanes: plan.lanes || [], took: plan.takes.length, decided: plan.clashes.length, defs: plan.newDefs.length }].slice(-20);
+    return p;
+  });
+}
+const stripBy = o => { const c = { ...o }; delete c._by; return c; };
+
+// The line on a building card that shows who is working separately on it.
+function laneStrip(p){
+  const ls = lanesOf(p.id), merged = mergedLanesOf(p.id);
+  if (!ls.length && !merged.length) return '';
+  const one = l => { const pr = progress(l); return `<button class="btn-sm" data-act="open" data-id="${l.id}">${esc(laneName(l))} · ${pr.done}/${pr.total}${S.dirty.has(l.id) ? ' · unsynced' : ''}</button>`; };
+  return `<div class="lanes">${ls.length ? `<span class="small faint">Testing separately:</span>${ls.map(one).join('')}` : ''}
+    ${merged.length ? `<span class="small faint">${merged.length} copy${merged.length===1?'':'ies'} already merged</span>` : ''}</div>`;
+}
+
+// ── the screen ──
+function mergeDialog(parentId){
+  const parent = S.projects[parentId];
+  const lanes = lanesOf(parentId);
+  if (!lanes.length) return toast('No field copies to merge.');
+  const plan = planMerge(parent, lanes);
+  plan.lanes = lanes.map(laneName);
+  const picks = plan.clashes.map(() => undefined);
+  const stale = lanes.filter(l => S.dirty.has(l.id));
+  const body = () => `
+    <p class="hint">Merging ${lanes.map(l => `<b>${esc(laneName(l))}</b>`).join(' and ')} into <b>${esc(parent.name)}</b>.
+    ${stale.length ? `<span class="flag">${stale.length === 1 ? 'One copy has' : stale.length + ' copies have'} entries still waiting to upload. Merge once ${stale.length === 1 ? 'it has' : 'they have'} synced, or those entries will not be in this merge.</span>` : 'All copies are synced.'}</p>
+    <div class="kv"><dt>Taken as entered</dt><dd>${plan.takes.length} result${plan.takes.length===1?'':'s'}</dd>
+      <dt>New deficiencies</dt><dd>${plan.newDefs.length}</dd>
+      <dt>New attachments</dt><dd>${plan.newFiles.length}</dd>
+      <dt>Open items updated</dt><dd>${plan.openUpd.length}</dd>
+      <dt>Needing a decision</dt><dd>${plan.clashes.length ? `<span class="flag">${plan.clashes.length}</span>` : 'none'}</dd></div>
+    ${plan.clashes.length ? `<div class="lbl" style="margin-top:12px">Answered differently</div>
+      <p class="hint">Two people recorded different answers for the same thing. Pick the one that goes on the record. Anything left unpicked keeps what the building record says now.</p>
+      ${plan.clashes.map((c, i) => `<div class="card small"><div><b>${esc(c.label)}</b></div>
+        <div class="rowflex" style="margin-top:6px">
+          ${c.answers.map(a => `<button class="btn-sm" data-pick="${i}" data-val="${esc(String(a.v))}">${esc(a.who)}: <b>${esc(String(a.v))}</b></button>`).join('')}
+          ${c.base !== '' && c.base != null ? `<button class="btn-sm" data-pick="${i}" data-val="${esc(String(c.base))}">keep current: ${esc(String(c.base))}</button>` : ''}
+        </div>
+        <div class="small faint" id="pk${i}">no decision yet</div></div>`).join('')}` : ''}
+    ${plan.newDefs.length ? `<div class="lbl" style="margin-top:12px">Deficiencies coming across</div><ul class="small muted">${plan.newDefs.slice(0,12).map(d => `<li>${esc(d._by)}: ${esc(d.loc || '')} ${esc(d.desc || '')}</li>`).join('')}${plan.newDefs.length>12?`<li>and ${plan.newDefs.length-12} more</li>`:''}</ul>` : ''}`;
+  modal(`<h3>Merge field copies</h3><div id="mg_body">${body()}</div>
+    <div class="acts"><button id="mCancel">Cancel</button><button id="mOk" class="btn-primary">Merge into the building</button></div>`, () => {
+    const bind = () => {
+      $$('[data-pick]').forEach(b => b.onclick = () => {
+        const i = +b.dataset.pick; picks[i] = b.dataset.val;
+        $$(`[data-pick="${i}"]`).forEach(x => x.classList.remove('btn-primary'));
+        b.classList.add('btn-primary');
+        const lbl = $('#pk' + i); if (lbl) lbl.textContent = 'will record: ' + b.dataset.val;
+      });
+    };
+    bind();
+    $('#mCancel').onclick = closeModal;
+    $('#mOk').onclick = () => {
+      const undecided = plan.clashes.filter((c, i) => picks[i] === undefined).length;
+      const go2 = () => {
+        applyMerge(parentId, plan, picks);
+        const when = new Date().toISOString();
+        for (const l of lanes) updateProject(l.id, x => { x.mergedAt = when; x.mergedInto = parentId; return x; }, { silent:true });
+        persist(); scheduleSync(); closeModal(); go('setup', parentId);
+        toast(`Merged ${plan.total} entr${plan.total===1?'y':'ies'} from ${lanes.length} field cop${lanes.length===1?'y':'ies'}.`);
+      };
+      if (undecided) confirmBox('Merge with undecided items?', `${undecided} disagreement${undecided===1?'':'s'} ${undecided===1?'has':'have'} no decision. The building record keeps what it has now for ${undecided===1?'that one':'those'}, and the field copies are kept so you can look again.`, 'Merge anyway', go2);
+      else go2();
     };
   });
 }
