@@ -269,7 +269,14 @@ td.cp{background:var(--pass-bg)} td.cf{background:var(--fail-bg)} td.cn{backgrou
 .file-card h4{word-break:break-word}
 .ok-tag{color:var(--accent);font-weight:600}
 .modal:has(.fv){width:min(980px,96vw);max-width:96vw}
-.fv{background:var(--bg4);border:1px solid var(--line);border-radius:8px;overflow:auto;max-height:70vh;display:grid;place-items:center}
+.fv{background:var(--bg4);border:1px solid var(--line);border-radius:8px;overflow:auto;max-height:72vh;-webkit-overflow-scrolling:touch}
+.fv:has(.fv-img),.fv:has(.empty){display:grid;place-items:center}
+.fv-page{display:block;width:100%;height:auto;margin:0 auto 10px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.fv-doc{background:#fff;color:#1b2a1f;padding:18px 20px;font-size:13px;line-height:1.6}
+.fv-doc table{border-collapse:collapse;width:100%;margin:8px 0;font-size:12px}
+.fv-doc td,.fv-doc th{border:1px solid #d9e1d8;padding:4px 6px;vertical-align:top}
+.fv-doc h1,.fv-doc h2,.fv-doc h3{font-family:var(--font-head);color:#196b24;margin:12px 0 4px}
+.fv-doc img{max-width:100%;height:auto}
 .fv-img{max-width:100%;height:auto;display:block}
 .fv-frame{width:100%;height:70vh;border:0;background:#fff}
 pre.prompt{font-family:var(--font-mono);font-size:11.5px;background:var(--bg4);border:1px solid var(--line);border-radius:6px;padding:8px 10px;white-space:pre-wrap;margin:0;color:var(--ink)}
@@ -380,7 +387,7 @@ function qrCanvas(text, px=6){
 <script>
 // ───────────────────────── data model ─────────────────────────
 const SCHEMA_VERSION = 2;
-const BUILD = '2026-09-14.da18e488';
+const BUILD = '2026-09-14.d8f45238';
 const FAN_TYPES = ['Stair pressurization fan','Smoke exhaust fan','Make-up air unit','RTU with smoke control','AHU with smoke control','Stair vestibule fan','Elevator pressurization fan','Smoke control damper'];
 const isDamper = e => ((e && e.type) || '').toLowerCase().includes('damper');
 const isFan = e => !isDamper(e);
@@ -1850,21 +1857,68 @@ function bindPanel(root, p){
   });
 }
 
+// ── document rendering ──
+// A home screen app cannot hand a PDF to the system viewer reliably, and a Word file not at all.
+// So the app renders them itself: PDF pages are drawn to canvas, Word files are converted to
+// readable HTML. Both engines are fetched once and then cached with the app, so a drawing opened
+// on the truck still opens in the stair.
+let pdfLib = null;
+async function loadPdfLib(){
+  if (pdfLib) return pdfLib;
+  pdfLib = await import('./pdf.mjs');
+  pdfLib.GlobalWorkerOptions.workerSrc = './pdf.worker.mjs';
+  return pdfLib;
+}
+let mammothLoading = null;
+function loadMammoth(){
+  if (window.mammoth) return Promise.resolve(window.mammoth);
+  if (!mammothLoading) mammothLoading = new Promise((res, rej) => { const s = document.createElement('script'); s.src = './mammoth.js'; s.onload = () => res(window.mammoth); s.onerror = () => { mammothLoading = null; rej(new Error('The Word viewer could not load. It needs a connection the first time.')); }; document.head.appendChild(s); });
+  return mammothLoading;
+}
+const b64ToBytes = b64 => { const bin = atob(b64); const a = new Uint8Array(bin.length); for (let i=0;i<bin.length;i++) a[i] = bin.charCodeAt(i); return a; };
+
+async function renderPdf(box, data, status){
+  const lib = await loadPdfLib();
+  const doc = await lib.getDocument({ data: b64ToBytes(data.b64) }).promise;
+  status(`${doc.numPages} page${doc.numPages===1?'':'s'}`);
+  box.innerHTML = '';
+  const scale = Math.min(2.2, Math.max(1.2, (box.clientWidth || 700) / 640));
+  for (let n = 1; n <= doc.numPages; n++) {
+    const page = await doc.getPage(n);
+    const vp = page.getViewport({ scale: scale * 1.4 });
+    const c = document.createElement('canvas');
+    c.width = vp.width; c.height = vp.height; c.className = 'fv-page';
+    box.appendChild(c);
+    await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+    if (n === 1) status(`${doc.numPages} page${doc.numPages===1?'':'s'}, pinch to zoom`);
+  }
+}
+async function renderDocx(box, data, status){
+  const m = await loadMammoth();
+  const res = await m.convertToHtml({ arrayBuffer: b64ToBytes(data.b64).buffer });
+  box.innerHTML = `<div class="fv-doc">${res.value}</div>`;
+  status('converted for reading; open the file itself for the exact layout');
+}
+
 // A viewer that works inside a home-screen app, where a blob URL in a new tab is often blocked.
 function openFileViewer(f, data){
   const blob = fileToBlob(f, data); const url = URL.createObjectURL(blob);
-  const body = isImageFile(f) ? `<img src="${url}" alt="${esc(f.name)}" class="fv-img">`
-    : isPdfFile(f) ? `<iframe src="${url}" class="fv-frame" title="${esc(f.name)}"></iframe>`
-    : `<div class="empty">${esc(f.name)} cannot be shown here. Use Share to open it in another app.</div>`;
-  modal(`<h3 style="margin-bottom:6px">${esc(f.name)}</h3><div class="small faint" style="margin-bottom:8px">${esc(kindLabel(f.kind))} · ${esc(fmtSize(f.size))}</div>
-    <div class="fv">${body}</div>
+  const ext = f.ext || fileExt(f.name);
+  modal(`<h3 style="margin-bottom:6px">${esc(f.name)}</h3><div class="small faint" id="fvInfo" style="margin-bottom:8px">${esc(kindLabel(f.kind))} &middot; ${esc(fmtSize(f.size))}</div>
+    <div class="fv" id="fvBody"><div class="empty small">Opening…</div></div>
     <div class="acts"><button id="fvShare">Share or save</button><button id="fvClose" class="btn-primary">Close</button></div>`, () => {
+    const body = $('#fvBody'), info = $('#fvInfo');
+    const status = s => { if (info) info.textContent = `${kindLabel(f.kind)} · ${fmtSize(f.size)} · ${s}`; };
     $('#fvClose').onclick = () => { closeModal(); URL.revokeObjectURL(url); };
     $('#fvShare').onclick = async () => {
       const file = new File([blob], f.name, { type: blob.type });
       if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: f.name }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
       const a = document.createElement('a'); a.href = url; a.download = f.name; a.click();
     };
+    if (isImageFile(f)) { body.innerHTML = `<img src="${url}" alt="${esc(f.name)}" class="fv-img">`; return; }
+    if (isPdfFile(f)) { renderPdf(body, data, status).catch(e => { console.warn(e); body.innerHTML = `<iframe src="${url}" class="fv-frame" title="${esc(f.name)}"></iframe>`; status('shown with the built-in viewer'); }); return; }
+    if (ext === 'docx') { renderDocx(body, data, status).catch(e => { body.innerHTML = `<div class="empty small">${esc(e.message || 'This Word file could not be shown here.')} Use Share to open it in another app.</div>`; }); return; }
+    body.innerHTML = `<div class="empty small">${esc(f.name)} cannot be shown here. Use Share to open it in another app.</div>`;
   });
 }
 
