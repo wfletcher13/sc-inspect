@@ -376,7 +376,7 @@ function qrCanvas(text, px=6){
 <script>
 // ───────────────────────── data model ─────────────────────────
 const SCHEMA_VERSION = 2;
-const BUILD = '2026-09-14.b5e0a4d8';
+const BUILD = '2026-09-14.3ee9ec19';
 const FAN_TYPES = ['Stair pressurization fan','Smoke exhaust fan','Make-up air unit','RTU with smoke control','AHU with smoke control','Stair vestibule fan','Elevator pressurization fan','Smoke control damper'];
 const isDamper = e => ((e && e.type) || '').toLowerCase().includes('damper');
 const isFan = e => !isDamper(e);
@@ -650,6 +650,19 @@ const ui = lsGet(LS.ui, {}); S.currentId = ui.currentId || null; S.view = ui.vie
 function persist(){ lsSet(LS.projects, S.projects); lsSet(LS.base, S.base); lsSet(LS.shas, S.shas); lsSet(LS.dirty, [...S.dirty]); lsSet(LS.ui, { currentId:S.currentId, view:S.view, pressMode:S.pressMode }); }
 function saveCfg(){ lsSet(LS.cfg, S.cfg); }
 const ghConfigured = () => !!(S.cfg.owner && S.cfg.repo && S.cfg.token);
+
+// Appearance. The field default is the light EB look: a phone left in Dark Mode used to turn the
+// whole app near-black, which is wrong for reading readings in daylight on a roof.
+const LS_THEME = 'scv5_theme';
+function applyTheme(v){
+  const t = v || lsGet(LS_THEME, 'light');
+  if (t === 'auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', t);
+  lsSet(LS_THEME, t);
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.setAttribute('content', t === 'dark' ? '#0f1511' : '#ffffff');
+}
+const currentTheme = () => lsGet(LS_THEME, 'light');
 
 // ── merge rules (three-way, field level; filled beats blank) ──
 const SCALAR_OBJ = ['info','systems'];
@@ -2200,10 +2213,16 @@ function settingsDialog(){
     <div class="lbl" style="margin-top:8px">Assistant (optional)</div>
     <div class="row2"><div class="field"><label class="lbl" for="st_key">Anthropic API key</label><input id="st_key" type="password" value="${esc(c.anthropicKey)}" placeholder="sk-ant-…" autocapitalize="off"></div><div class="field"><label class="lbl" for="st_model">Model</label><input id="st_model" value="${esc(c.model)}" autocapitalize="off"></div></div>
     <div class="field"><label class="lbl" for="st_me">Inspector name (this device)</label><input id="st_me" value="${esc(S.me)}"></div>
+    <div class="field"><label class="lbl" for="st_theme">Appearance (this device)</label><select id="st_theme">
+      <option value="light">Light: white and EB green (recommended in daylight)</option>
+      <option value="dark">Dark</option>
+      <option value="auto">Match the phone's setting</option></select></div>
     <div class="rowflex" style="margin-top:10px"><button id="st_scan" class="btn-primary">Scan setup code</button><button id="st_paste">Paste setup link</button><button id="st_share">Set up another device</button><button id="st_diag">Connection check</button></div>
     <div id="st_msg" class="small muted" style="margin-top:8px"></div>
     <div class="small faint" style="margin-top:6px">App build ${BUILD}</div>
     <div class="acts"><button id="st_test">Test repository</button><button id="st_testai">Test assistant</button><button id="mCancel">Cancel</button><button id="mOk" class="btn-primary">Save</button></div>`, () => {
+    $('#st_theme').value = currentTheme();
+    $('#st_theme').onchange = e => applyTheme(e.target.value);
     const read = () => { S.cfg.owner = $('#st_owner').value.trim(); S.cfg.repo = $('#st_repo').value.trim(); S.cfg.token = $('#st_token').value.trim(); S.cfg.anthropicKey = $('#st_key').value.trim(); S.cfg.model = $('#st_model').value.trim() || 'claude-sonnet-5'; S.me = $('#st_me').value.trim(); saveCfg(); lsSet(LS.me, S.me); };
     $('#mCancel').onclick = closeModal;
     $('#st_scan').onclick = () => { read(); scanSetupDialog(); };
@@ -2219,6 +2238,7 @@ function settingsDialog(){
   });
 }
 async function boot(){
+  applyTheme();
   $('#btnNewSide').onclick = newBuilding; $('#btnHomeSide').onclick = () => go('home');
   $('#btnSettingsSide').onclick = settingsDialog;
   chatInit();
