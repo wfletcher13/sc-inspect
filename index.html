@@ -1,0 +1,1400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SC Inspect</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#196b24">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="SC Inspect">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="icon" href="./icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --font-head:'Montserrat',system-ui,sans-serif;
+  --font-ui:'IBM Plex Sans',system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --bg:#f4f7f3; --bg2:#ffffff; --bg3:#f8faf7; --bg4:#eef2ec;
+  --line:#d9e1d8; --line2:#c2cdc1;
+  --ink:#1b2a1f; --ink2:#55665a; --ink3:#8a988e;
+  --accent:#196b24; --accent2:#125219; --accent-bg:#e6f2e7; --accent-bd:#b9d8bd; --on-accent:#ffffff;
+  --pass:#1f8a3b; --pass-bg:#e8f5ec; --pass-bd:#b5dcbf;
+  --fail:#c43b2e; --fail-bg:#fbeae8; --fail-bd:#eebbb5;
+  --warn:#b07a12; --warn-bg:#fbf3df; --warn-bd:#ecd59a;
+  --na:#6b7a70; --na-bg:#eef1ee; --na-bd:#cfd7d0;
+  --info:#2f5f8a; --info-bg:#e8f0f8; --info-bd:#bcd2e6;
+  --shadow:0 1px 2px rgba(20,40,25,.06),0 6px 20px -12px rgba(20,40,25,.25);
+  --r:8px; --rl:12px;
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --bg:#0f1511; --bg2:#171f19; --bg3:#1b241d; --bg4:#222d25;
+  --line:#2b3a2f; --line2:#3b4c40;
+  --ink:#e6ece7; --ink2:#a5b3a8; --ink3:#71806f;
+  --accent:#4fae5b; --accent2:#6cc377; --accent-bg:#183a1f; --accent-bd:#2a5c33; --on-accent:#08130a;
+  --pass:#5cc274; --pass-bg:#173622; --pass-bd:#27583a;
+  --fail:#f0776a; --fail-bg:#3d1e1a; --fail-bd:#66302a;
+  --warn:#e2b04a; --warn-bg:#3a2e12; --warn-bd:#5d4a1c;
+  --na:#9aa89d; --na-bg:#232c25; --na-bd:#3a463c;
+  --info:#7fb1e0; --info-bg:#182735; --info-bd:#2b435c;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+}}
+:root[data-theme="dark"]{
+  --bg:#0f1511; --bg2:#171f19; --bg3:#1b241d; --bg4:#222d25;
+  --line:#2b3a2f; --line2:#3b4c40;
+  --ink:#e6ece7; --ink2:#a5b3a8; --ink3:#71806f;
+  --accent:#4fae5b; --accent2:#6cc377; --accent-bg:#183a1f; --accent-bd:#2a5c33; --on-accent:#08130a;
+  --pass:#5cc274; --pass-bg:#173622; --pass-bd:#27583a;
+  --fail:#f0776a; --fail-bg:#3d1e1a; --fail-bd:#66302a;
+  --warn:#e2b04a; --warn-bg:#3a2e12; --warn-bd:#5d4a1c;
+  --na:#9aa89d; --na-bg:#232c25; --na-bd:#3a463c;
+  --info:#7fb1e0; --info-bg:#182735; --info-bd:#2b435c;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-ui);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--font-head);margin:0;text-wrap:balance;letter-spacing:-.01em}
+button{font-family:inherit;cursor:pointer;border:1px solid var(--line);background:var(--bg4);color:var(--ink2);border-radius:var(--r);padding:7px 12px;font-size:13px;font-weight:500;transition:background .12s,border-color .12s,color .12s}
+button:hover{border-color:var(--line2);color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button:disabled{opacity:.5;cursor:default}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.btn-primary:hover{background:var(--accent2);border-color:var(--accent2);color:var(--on-accent)}
+.btn-danger{background:var(--fail-bg);border-color:var(--fail-bd);color:var(--fail)}
+.btn-ghost{background:transparent;border-color:transparent}
+.btn-sm{padding:4px 9px;font-size:12px}
+.btn-block{width:100%;justify-content:center;display:inline-flex}
+input,select,textarea{font-family:inherit;font-size:14px;color:var(--ink);background:var(--bg3);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;width:100%;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+input[type=number]{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+input[type=checkbox]{width:auto}
+textarea{resize:vertical;min-height:64px;line-height:1.5}
+label.lbl,.lbl{display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);margin-bottom:4px;font-family:var(--font-head)}
+.field{margin-bottom:12px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media (max-width:560px){.row2,.row3{grid-template-columns:1fr}}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--ink2)} .faint{color:var(--ink3)} .small{font-size:12px}
+.tag{font-family:var(--font-mono);font-weight:600;color:var(--accent)}
+
+/* layout */
+#app{display:flex;height:100dvh;overflow:hidden}
+aside.side{width:250px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column;height:100dvh}
+.side-head{padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:9px}
+.brand-mark{width:28px;height:28px;border-radius:7px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-family:var(--font-head);font-weight:700;font-size:12px;letter-spacing:.02em}
+.brand-name{font-family:var(--font-head);font-weight:700;font-size:14px}
+.brand-sub{font-size:11px;color:var(--ink3);margin-top:-2px}
+.sync{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--ink2)}
+.sync .dot{width:8px;height:8px;border-radius:50%;background:var(--na)}
+.sync.ok .dot{background:var(--pass)} .sync.pending .dot{background:var(--warn)} .sync.offline .dot{background:var(--fail)} .sync.local .dot{background:var(--na)}
+nav.views{flex:1;overflow-y:auto;padding:6px 0}
+nav.views button{width:100%;display:flex;align-items:center;gap:10px;padding:10px 16px;background:none;border:none;border-left:3px solid transparent;border-radius:0;color:var(--ink2);font-size:14px;text-align:left;min-height:42px}
+nav.views button.on{background:var(--bg4);border-left-color:var(--accent);color:var(--accent);font-weight:600}
+nav.views button .cnt{margin-left:auto;font-size:11px;background:var(--bg4);border:1px solid var(--line);border-radius:10px;padding:0 7px;color:var(--ink2);font-family:var(--font-mono)}
+nav.views button.on .cnt{background:var(--accent-bg);border-color:var(--accent-bd)}
+nav.views .sep{height:1px;background:var(--line);margin:6px 16px}
+.side-foot{padding:12px 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+main.content{flex:1;min-width:0;display:flex;flex-direction:column;height:100dvh}
+.topbar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--bg2);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.topbar h1{font-size:16px;font-weight:700}
+.topbar .grow{flex:1}
+.topbar select{width:auto;max-width:260px;padding:6px 8px;font-size:13px}
+.scroll{flex:1;overflow-y:auto;padding:16px 20px 90px;-webkit-overflow-scrolling:touch}
+.wrap{max-width:1150px}
+.mobile-nav{display:none}
+.mobile-bar{display:none}
+@media (max-width:900px){
+  aside.side{display:none}
+  .scroll{padding:12px 14px 96px}
+  .mobile-nav{display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--line);z-index:40;padding-bottom:env(safe-area-inset-bottom)}
+  .mobile-nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 2px 6px;background:none;border:none;border-top:2.5px solid transparent;border-radius:0;color:var(--ink3);font-size:9.5px;font-weight:700;letter-spacing:.03em;min-width:0}
+  .mobile-nav button.on{color:var(--accent);border-top-color:var(--accent)}
+  .mobile-nav button svg{width:20px;height:20px}
+  .mobile-bar{display:flex}
+}
+/* section card */
+.sec{background:var(--bg2);border:1px solid var(--line);border-radius:var(--rl);margin-bottom:12px;box-shadow:var(--shadow)}
+.sec-h{display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;user-select:none}
+.sec-h h3{font-size:13.5px;font-weight:600;flex:1}
+.sec-h .chev{transition:transform .15s;color:var(--ink3)}
+.sec.closed .chev{transform:rotate(-90deg)}
+.sec.closed .sec-b{display:none}
+.sec-b{padding:4px 16px 16px;border-top:1px solid var(--line)}
+.sec-b.nopad{padding:0}
+.card{background:var(--bg3);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:8px}
+.hint{font-size:12px;color:var(--ink2);line-height:1.55;margin:0 0 10px}
+.empty{padding:22px 12px;text-align:center;color:var(--ink3);font-size:13px}
+/* toggles */
+.tog-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.tog-row:last-child{border-bottom:none}
+.switch{position:relative;width:40px;height:22px;flex-shrink:0}
+.switch input{position:absolute;opacity:0;width:0;height:0}
+.switch span{position:absolute;inset:0;background:var(--line2);border-radius:11px;transition:.15s}
+.switch span::after{content:"";position:absolute;width:18px;height:18px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.15s}
+.switch input:checked+span{background:var(--accent)}
+.switch input:checked+span::after{transform:translateX(18px)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 8px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--accent-bg);border:1px solid var(--accent-bd);color:var(--accent);border-radius:6px;padding:2px 6px 2px 10px;font-size:12px;font-weight:500}
+.chip button{background:none;border:none;color:var(--ink3);padding:0 3px;font-size:14px;line-height:1}
+.stepper{display:inline-flex;align-items:center}
+.stepper button{width:28px;height:28px;padding:0;font-size:16px;line-height:1}
+.stepper span{width:34px;height:28px;display:grid;place-items:center;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-family:var(--font-mono);font-size:13px;background:var(--bg3)}
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:12px}
+.stat{background:var(--bg3);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+.stat b{display:block;font-family:var(--font-head);font-size:20px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.stat.pass b{color:var(--pass)} .stat.fail b{color:var(--fail)} .stat.warn b{color:var(--warn)}
+/* result rows */
+.rr{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.rr:last-child{border-bottom:none}
+.rr-info{flex:1;min-width:0}
+.rr-name{font-size:13.5px;font-weight:500}
+.rr-ev{font-size:11.5px;color:var(--ink3)}
+.rr-exp{font-size:11.5px;color:var(--ink2);font-style:italic}
+.pfn{display:inline-flex;gap:3px;flex-shrink:0}
+.pfn button{min-width:38px;height:32px;padding:0 8px;font-weight:700;font-size:12px;font-family:var(--font-mono)}
+.pfn button.p{background:var(--pass);border-color:var(--pass);color:#fff}
+.pfn button.f{background:var(--fail);border-color:var(--fail);color:#fff}
+.pfn button.n{background:var(--na);border-color:var(--na);color:#fff}
+/* matrix */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--bg2)}
+table.mx{border-collapse:separate;border-spacing:0;font-size:12px;min-width:100%}
+table.mx th{position:sticky;top:0;background:var(--bg4);color:var(--ink2);font-weight:600;font-size:11px;letter-spacing:.03em;padding:8px 6px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap;z-index:2}
+table.mx th:first-child,table.mx td:first-child{position:sticky;left:0;background:var(--bg4);z-index:3;text-align:left;font-family:var(--font-mono);font-weight:600;padding-left:10px}
+table.mx td{padding:3px 4px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+table.mx tr:last-child td{border-bottom:none}
+.mc{display:inline-flex;gap:2px}
+.mc button{width:26px;height:26px;padding:0;font-size:11px;font-weight:700;font-family:var(--font-mono);border-radius:5px}
+.mc button.p{background:var(--pass);border-color:var(--pass);color:#fff}
+.mc button.f{background:var(--fail);border-color:var(--fail);color:#fff}
+.mc button.n{background:var(--na);border-color:var(--na);color:#fff}
+td.cp{background:var(--pass-bg)} td.cf{background:var(--fail-bg)} td.cn{background:var(--na-bg)}
+/* pressure */
+.pgrid{display:grid;gap:4px;align-items:center;margin-bottom:4px}
+.pgrid .ph{font-size:10.5px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em}
+.pgrid .pf{font-family:var(--font-mono);font-weight:600;font-size:12.5px}
+.pgrid input{padding:6px 4px;font-size:13px;min-width:0;text-align:center}
+/* by-floor rows: label beside the readings on a laptop, above them on a phone */
+.prow{display:grid;grid-template-columns:150px 1fr;gap:10px;align-items:center;margin-bottom:4px}
+.prow .pin{display:grid;grid-template-columns:1fr 1fr 1fr 92px;gap:4px;align-items:center}
+.prow .pin.noc{grid-template-columns:1fr 1fr 1fr}
+.prow .pf{font-family:var(--font-mono);font-weight:600;font-size:12.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:560px){
+  .prow{display:block;margin-bottom:9px}
+  .prow .pf{margin-bottom:3px;white-space:normal}
+  .prow .pin{grid-template-columns:1fr 1fr 1fr 74px;gap:3px}
+  .prow .ph{font-size:9.5px;letter-spacing:0}
+  .prow input{font-size:12px;padding:6px 2px}
+}
+@media (max-width:560px){.pgrid{grid-template-columns:58px 1fr 1fr 1fr 72px !important;gap:3px}.pgrid.noc{grid-template-columns:58px 1fr 1fr 1fr !important}.pgrid .ph{font-size:9.5px;letter-spacing:0}.pgrid input{font-size:12px;padding:6px 2px}.cl-btn{font-size:9px;padding:0}}
+.pgrid input.bad{border-color:var(--fail);background:var(--fail-bg);color:var(--fail)}
+.cl-btn{width:100%;height:32px;font-size:10px;font-weight:700;font-family:var(--font-mono);letter-spacing:.05em}
+.cl-btn.pass{background:var(--pass-bg);border-color:var(--pass-bd);color:var(--pass)}
+.cl-btn.fail{background:var(--fail-bg);border-color:var(--fail-bd);color:var(--fail)}
+.subtabs{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap}
+.subtabs button{flex:1;min-width:80px;font-weight:600}
+.subtabs button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+/* badges */
+.badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:5px;border:1px solid;letter-spacing:.02em}
+.b-def{color:var(--fail);background:var(--fail-bg);border-color:var(--fail-bd)}
+.b-obs{color:var(--warn);background:var(--warn-bg);border-color:var(--warn-bd)}
+.b-note{color:var(--na);background:var(--na-bg);border-color:var(--na-bd)}
+.b-ok{color:var(--pass);background:var(--pass-bg);border-color:var(--pass-bd)}
+.b-info{color:var(--info);background:var(--info-bg);border-color:var(--info-bd)}
+.b-crit{color:#fff;background:var(--fail);border-color:var(--fail)}
+/* deficiencies */
+.def{border:1px solid var(--line);border-left:4px solid var(--fail);border-radius:var(--r);padding:10px 12px;margin-bottom:8px;background:var(--bg2)}
+.def.obs{border-left-color:var(--warn)} .def.note{border-left-color:var(--na)}
+.def-h{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.def-h .loc{font-family:var(--font-mono);font-size:12px;color:var(--ink2)}
+.def-act{font-size:12.5px;color:var(--ink2);margin-top:4px}
+.photos{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.photos img{width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--line);cursor:pointer}
+.photos .add{width:72px;height:72px;border:1px dashed var(--line2);border-radius:6px;display:grid;place-items:center;color:var(--ink3);font-size:11px;text-align:center;cursor:pointer;background:var(--bg3)}
+/* open items */
+.oi{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;margin-bottom:8px;background:var(--bg2)}
+.oi.resolved{opacity:.7}
+.oi-h{display:flex;gap:8px;align-items:flex-start}
+.oi-h b{flex:1;font-weight:600;font-size:13.5px}
+.oi p{margin:4px 0;font-size:12.5px;color:var(--ink2)}
+.oi .st{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;align-items:center}
+.oi .st button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+/* dashboard */
+.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.hero h2{font-size:22px;font-weight:700}
+.hero p{margin:2px 0 0;color:var(--ink2)}
+.bcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.bcard{background:var(--bg2);border:1px solid var(--line);border-radius:var(--rl);padding:14px 16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:8px}
+.bcard h3{font-size:15px;font-weight:600}
+.bcard .addr{font-size:12px;color:var(--ink3)}
+.bcard .meta{display:flex;gap:10px;font-size:12px;color:var(--ink2);flex-wrap:wrap}
+.bcard .prog{height:6px;background:var(--bg4);border-radius:3px;overflow:hidden}
+.bcard .prog i{display:block;height:100%;background:var(--accent)}
+.bcard .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto}
+.dtabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.dtabs button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+/* reports */
+.rep{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.rep .card{margin:0;display:flex;flex-direction:column;gap:8px}
+.rep h4{font-size:14px;font-weight:600}
+.rep p{margin:0;font-size:12.5px;color:var(--ink2)}
+pre.prompt{font-family:var(--font-mono);font-size:11.5px;background:var(--bg4);border:1px solid var(--line);border-radius:6px;padding:8px 10px;white-space:pre-wrap;margin:0;color:var(--ink)}
+/* chat */
+.chat-fab{position:fixed;right:18px;bottom:18px;z-index:45;width:52px;height:52px;border-radius:50%;background:var(--accent);border-color:var(--accent);color:var(--on-accent);box-shadow:var(--shadow);display:grid;place-items:center;padding:0}
+@media (max-width:900px){.chat-fab{bottom:74px}}
+.chat{position:fixed;top:0;right:0;bottom:0;width:min(420px,100vw);background:var(--bg2);border-left:1px solid var(--line);z-index:60;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .2s}
+.chat.open{transform:none}
+@media (prefers-reduced-motion:reduce){.chat{transition:none}}
+.chat-h{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.chat-h h3{flex:1;font-size:14px}
+.chat-log{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:92%;padding:8px 12px;border-radius:12px;font-size:13.5px;white-space:pre-wrap;line-height:1.5}
+.msg.u{align-self:flex-end;background:var(--accent);color:var(--on-accent);border-bottom-right-radius:4px}
+.msg.a{align-self:flex-start;background:var(--bg4);border:1px solid var(--line);border-bottom-left-radius:4px}
+.msg.t{align-self:flex-start;font-size:11.5px;color:var(--ink3);font-family:var(--font-mono);padding:2px 6px}
+.chat-in{display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--line)}
+.chat-in textarea{min-height:40px;max-height:120px;padding:8px 10px}
+/* toast + modal */
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:80;display:flex;gap:10px;align-items:center;max-width:90vw}
+.toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.toast button{background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:inherit;padding:2px 9px;font-size:12px}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:70;display:grid;place-items:center;padding:16px}
+.modal{background:var(--bg2);border:1px solid var(--line);border-radius:var(--rl);padding:20px;width:min(560px,100%);max-height:90vh;overflow:auto;box-shadow:var(--shadow)}
+.modal h3{font-size:16px;margin-bottom:10px}
+.modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:90;display:grid;place-items:center;cursor:zoom-out}
+.lightbox img{max-width:95vw;max-height:90vh;border-radius:6px}
+.flag{font-size:11px;color:var(--fail);font-weight:600}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12.5px}
+.kv dt{color:var(--ink3)} .kv dd{margin:0}
+.seqrow{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.seqrow textarea{min-height:44px}
+@media (max-width:560px){.seqrow{grid-template-columns:1fr}}
+.zn{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;margin-bottom:8px;background:var(--bg2)}
+.zn-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.zn-h .z{font-family:var(--font-mono);font-weight:700;color:var(--accent);font-size:14px}
+.zn-cells{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px}
+@media (max-width:560px){.zn-cells{grid-template-columns:1fr}}
+.zn-cells .c{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:12px;color:var(--ink2)}
+.res{font-family:var(--font-mono);font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;border:1px solid}
+.res.pass{color:var(--pass);background:var(--pass-bg);border-color:var(--pass-bd)}
+.res.fail{color:var(--fail);background:var(--fail-bg);border-color:var(--fail-bd)}
+.res.partial{color:var(--warn);background:var(--warn-bg);border-color:var(--warn-bd)}
+.res.none{color:var(--ink3);background:var(--bg4);border-color:var(--line)}
+</style>
+
+</head>
+<body>
+<div id="app">
+  <aside class="side">
+    <div class="side-head">
+      <div class="brand"><div class="brand-mark">EB</div><div><div class="brand-name">SC Inspect</div><div class="brand-sub">EB Life Safety</div></div></div>
+      <div class="sync local" id="syncBadge"><span class="dot"></span><span id="syncLabel">Local only</span></div>
+    </div>
+    <nav class="views" id="sideNav"></nav>
+    <div class="side-foot">
+      <button class="btn-primary btn-block" id="btnNewSide">+ New building</button>
+      <button class="btn-block" id="btnHomeSide">All buildings</button>
+      <button class="btn-block" id="btnSettingsSide">Settings</button>
+    </div>
+  </aside>
+  <main class="content">
+    <div class="topbar" id="topbar"></div>
+    <div class="scroll" id="scroll"><div class="wrap" id="view"></div></div>
+  </main>
+  <nav class="mobile-nav" id="mobileNav"></nav>
+</div>
+<button class="chat-fab" id="chatFab" title="Ask about this project" hidden>
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3v-6a8 8 0 0 1 8-8h2a8 8 0 0 1 8 3"/></svg>
+</button>
+<div class="chat" id="chat">
+  <div class="chat-h"><h3>Ask about this project</h3><button class="btn-sm" id="chatClear">Clear</button><button class="btn-sm" id="chatClose">Close</button></div>
+  <div class="chat-log" id="chatLog"></div>
+  <div class="chat-in"><textarea id="chatText" placeholder="e.g. mark SPF-3 belt-off test as fail" rows="1"></textarea><button class="btn-primary" id="chatSend">Send</button></div>
+</div>
+<div class="toast" id="toast"></div>
+<div id="modalRoot"></div>
+
+<script>
+// ───────────────────────── data model ─────────────────────────
+const SCHEMA_VERSION = 2;
+const FAN_TYPES = ['Stair pressurization fan','Smoke exhaust fan','Make-up air unit','RTU with smoke control','AHU with smoke control','Stair vestibule fan','Elevator pressurization fan','Smoke control damper'];
+const isDamper = e => ((e && e.type) || '').toLowerCase().includes('damper');
+const isFan = e => !isDamper(e);
+const uid = (p='') => p + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const clone = o => JSON.parse(JSON.stringify(o));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const todayISO = () => new Date().toISOString().slice(0,10);
+
+function blankProject(name='New building'){
+  return {
+    id: uid('p'), schemaVersion: SCHEMA_VERSION, name, status:'active',
+    created: new Date().toISOString(), updated: new Date().toISOString(),
+    info:{ building:'', address:'', date: todayISO(), inspector:'', company:'Existing Building, LLC (EB Life Safety)', floorLow:1, floorHigh:'', typicalLow:'', code:'FBC §909 / NFPA 92' },
+    systems:{ stair:false, vest:false, elev:false, corr:false, exhaustFireFloor:true, exhaustAbove:0, exhaustBelow:0, pressFireFloor:false, corrAbove:2, corrBelow:2, lobby:false, weekly:false, wflow:false },
+    stairwells:[], hoistways:[], sequence:[], sequenceNotes:'', equipment:[],
+    seqResults:{}, matrixResults:{}, zoneResults:{}, floors:{}, deficiencies:[], notes:'',
+    _meta:{ source:'', sequenceFull:'', conflicts:[] },
+  };
+}
+
+// Normalise any import (v1 or v2) into the v2 shape without losing data.
+function normalizeProject(raw, fallbackName){
+  const src = raw && raw.project ? raw.project : (raw || {});
+  const p = blankProject(fallbackName || src.name || (src.info && src.info.building) || 'Imported building');
+  for (const k of Object.keys(src)) if (!['id','info','systems','_meta'].includes(k)) p[k] = src[k];
+  p.info = { ...p.info, ...(src.info || {}) };
+  p.systems = { ...p.systems, ...(src.systems || {}) };
+  p._meta = { source:'', sequenceFull:'', conflicts:[], ...(src._meta || {}) };
+  if (!Array.isArray(p._meta.conflicts)) p._meta.conflicts = [];
+  p._meta.conflicts = p._meta.conflicts.map((c,i) => ({ id: c.id || ('c'+i), status:'open', resolution:'', ...c }));
+  for (const k of ['stairwells','hoistways','sequence','equipment','deficiencies']) if (!Array.isArray(p[k])) p[k] = [];
+  for (const k of ['seqResults','matrixResults','zoneResults','floors']) if (!p[k] || typeof p[k] !== 'object') p[k] = {};
+  p.equipment = p.equipment.map(e => {
+    const z = zoneInfo(e);
+    return { tag:'', type:FAN_TYPES[0], location:'', zone:'', room:'', floor:'', cfm:'', cmnt:'', hasVFD:false, hasBelt:false, hasDuctDet:false, ...e,
+      zone: e.zone || z.zone, room: e.room || z.room, floor: e.floor || z.floor };
+  });
+  p.deficiencies = p.deficiencies.map(d => ({ id: d.id || uid('d'), loc:'', sev:'Deficiency', desc:'', action:'', photos:[], ...d, photos: Array.isArray(d.photos) ? d.photos : [] }));
+  p.sequence = p.sequence.map(s => ({ id: s.id || uid('s'), trigger:'', response:'', equipment:[], floors:'', notes:'', ...s }));
+  // migrate index-keyed per-equipment results ("3_1") to tag keys ("SPF-1_1")
+  const migrated = {};
+  for (const [k,v] of Object.entries(p.seqResults)) {
+    const m = /^(\d+)_(\d+)$/.exec(k);
+    if (m && p.equipment[+m[1]] && p.equipment[+m[1]].tag) { const nk = p.equipment[+m[1]].tag + '_' + m[2]; if (!(nk in p.seqResults)) migrated[nk] = v; }
+    else migrated[k] = v;
+  }
+  p.seqResults = migrated;
+  p.name = p.name || p.info.building || 'Imported building';
+  p.schemaVersion = SCHEMA_VERSION;
+  if (!p.status) p.status = 'active';
+  if (typeof p.id !== 'string' || !p.id) p.id = uid('p');
+  return p;
+}
+
+// Zone parsing: explicit keys, else "Zone 11 — Ballroom (2nd Floor)"
+function zoneInfo(e){
+  let zone = e.zone || '', room = e.room || '', floor = e.floor || '';
+  const loc = e.location || '';
+  if (!zone && /^Zone\s+/i.test(loc)) {
+    const rest = loc.replace(/^Zone\s+/i,'');
+    const sepIdx = Math.min(...[' — ',' - ',' – '].map(s => { const i = rest.indexOf(s); return i < 0 ? 1e9 : i; }));
+    if (sepIdx < 1e9) {
+      zone = rest.slice(0, sepIdx).trim();
+      const right = rest.slice(sepIdx).replace(/^[\s—–-]+/,'');
+      const pi = right.lastIndexOf('(');
+      if (pi >= 0) { if (!floor) floor = right.slice(pi+1).replace(/\)\s*$/,'').trim(); if (!room) room = right.slice(0,pi).trim(); }
+      else if (!room) room = right.trim();
+    } else zone = rest.trim();
+  }
+  return { zone, room, floor };
+}
+const isZoneEq = e => !!(e.zone || /^Zone\s+/i.test(e.location || ''));
+
+// Floors: floorHigh down to floorLow, then Lobby (matches engine)
+function floorLabel(f){ return f < 0 ? 'B'+Math.abs(f) : (f === 0 ? 'L' : String(f)); }
+function getFloors(p){
+  const hi = p.info.floorHigh; if (hi === '' || hi == null || isNaN(+hi)) return [];
+  const lo = (p.info.floorLow === '' || p.info.floorLow == null) ? 1 : +p.info.floorLow;
+  const out = []; for (let f = +hi; f >= lo; f--) out.push(floorLabel(f)); out.push('Lobby'); return out;
+}
+function floorRank(fl){ // for ordering zone floors
+  const f = (fl||'').toLowerCase();
+  if (!f) return 8; if (f.includes('lobby') || f.includes('ground')) return 0; if (f.includes('mezz')) return 1;
+  const m = /(\d+)/.exec(f); if (m) return +m[1]; return 8;
+}
+function typicalLow(p){
+  const t = p.info.typicalLow; if (t !== '' && t != null && !isNaN(+t)) return +t;
+  const zf = p.equipment.filter(isZoneEq).map(e => floorRank(e.floor));
+  const maxamen = zf.length ? Math.max(...zf) : 5;
+  return Math.max(maxamen + 1, 6);
+}
+function typicalFloors(p){ const hi = +p.info.floorHigh; const lo = typicalLow(p); if (!hi || hi < lo) return []; const out=[]; for (let f=hi; f>=lo; f--) out.push(String(f)); return out; }
+function lowerFloors(p){ const all = getFloors(p); const t = String(typicalFloors(p).slice(-1)[0] ?? ''); const idx = all.indexOf(t); return idx < 0 ? all : all.slice(idx+1); }
+
+function getStairNames(p){ return p.systems.stair ? (p.stairwells || []) : []; }
+function getHoistwayNames(p){ return p.systems.elev ? ((p.hoistways && p.hoistways.length) ? p.hoistways : ['EL']) : []; }
+const hwKey = h => h.replace(/\s+/g,'_');
+const hwLabel = h => { const d = h.replace(/\D/g,''); return d ? 'EL'+d : h.slice(0,4); };
+
+// Matrix columns: building-wide fans (non-zone) + corridor + elevator + press
+function getMatrixCols(p){
+  const cols = [];
+  p.equipment.filter(e => isFan(e) && !isZoneEq(e)).forEach(e => cols.push({ key:'fan_'+e.tag, label:e.tag, group:'Fans' }));
+  if (p.systems.corr) { cols.push({ key:'corr_dampers', label:'Corr Dmp', group:'Corridor' }); cols.push({ key:'corr_seq', label:'Corr Seq', group:'Corridor' }); }
+  getHoistwayNames(p).forEach(h => { cols.push({ key:`elev_${hwKey(h)}_rel`, label:hwLabel(h)+' Rel', group:'Elev' }); cols.push({ key:`elev_${hwKey(h)}_lat`, label:hwLabel(h)+' Lat', group:'Elev' }); });
+  if (p.systems.corr) { cols.push({ key:'press_above', label:'Press Abv', group:'Press' }); cols.push({ key:'press_below', label:'Press Blw', group:'Press' }); }
+  return cols;
+}
+// Zones grouped by floor
+function getZones(p){
+  const map = {};
+  p.equipment.filter(isZoneEq).forEach(e => { const z = zoneInfo(e); const k = z.zone || '?'; const o = map[k] || (map[k] = { zone:k, room:z.room, floor:z.floor, tags:[], eqs:[] }); if (!o.room && z.room) o.room = z.room; if (!o.floor && z.floor) o.floor = z.floor; o.tags.push(e.tag); o.eqs.push(e); });
+  const znum = z => +(z.replace(/\D/g,'') || 999);
+  return Object.values(map).sort((a,b) => floorRank(a.floor)-floorRank(b.floor) || znum(a.zone)-znum(b.zone));
+}
+function zoneRollup(p, z){
+  const vals = [];
+  z.eqs.forEach(e => getSeqTests(e).forEach((_,ti) => { const v = seqGet(p, e, ti); if (v) vals.push(v); }));
+  if (!vals.length) return '';
+  if (vals.includes('fail')) return 'fail';
+  if (vals.every(v => v === 'pass' || v === 'na')) return 'pass';
+  return 'partial';
+}
+
+function getSeqTests(eq){
+  const t = [];
+  if (isFan(eq)) {
+    t.push({ event:'FSCP', action:'Manual override ON', exp:'Fan ON / SUPERVISORY / ON panel' });
+    t.push({ event:'FSCP', action:'Manual override OFF', exp:'Fan OFF / returns to AUTO' });
+    t.push({ event:'Power loss', action:'Disconnect switch', exp:'Fan OFF / TROUBLE-SUPERVISORY / OFF-FAULT' });
+    if (eq.hasVFD || eq.drive === 'VFD') t.push({ event:'Power loss', action:'VFD power loss', exp:'Fan OFF / TROUBLE-SUPERVISORY / OFF-FAULT' });
+    if (eq.hasBelt) t.push({ event:'Belt-off test', action:'Remove belt, confirm shutdown', exp:'Fan OFF / TROUBLE-SUPERVISORY / FAULT panel' });
+    if (eq.hasDuctDet) { t.push({ event:'Duct detector activation', action:'Fan shutdown', exp:'Fan OFF / SUPERVISORY / OFF panel' }); t.push({ event:'Duct det. override', action:'Manual override ON', exp:'Fan ON / SUPERVISORY / ON panel' }); }
+  } else {
+    t.push({ event:'FSCP', action:'Switch to OPEN', exp:'Damper open / SUPERVISORY / OPEN panel' });
+    t.push({ event:'FSCP', action:'Switch to CLOSED', exp:'Damper closed / SUPERVISORY / CLOSED panel' });
+    t.push({ event:'FSCP', action:'Return to AUTO', exp:'Correct auto position' });
+    t.push({ event:'Power loss', action:'Disconnect', exp:'TROUBLE / FAULT on panels' });
+  }
+  return t;
+}
+const seqKey = (eq, ti) => `${eq.tag}_${ti}`;
+const seqGet = (p, eq, ti) => p.seqResults[seqKey(eq,ti)] || '';
+
+const FAULT_TESTS = [
+  { id:'f1', lbl:'Power loss fault, each active component', ev:'TROUBLE/FAULT on both panels' },
+  { id:'f2', lbl:'Loss of positive confirmation when commanded ON', ev:'TROUBLE/FAULT on both panels' },
+  { id:'f3', lbl:'UUKL weekly self-test', ev:'Verify programmed or document N/A' },
+];
+const EMERG_TESTS = [
+  { id:'e1', lbl:'Loss of power: transfer within 60 seconds', ev:'FA + smoke control active on EP' },
+  { id:'e2', lbl:'Control systems return to operational config on EP', ev:'Verify all components active' },
+  { id:'e3', lbl:'Sample pressure differentials on emergency power', ev:'Values within design range' },
+  { id:'e4', lbl:'Required-open dampers operate on EP', ev:'Confirm damper positions' },
+];
+const INIT_TESTS = [
+  { id:'i1', lbl:'Smoke detectors, all floors, confirm startup sequence', ev:'Correct zone activation' },
+  { id:'i2', lbl:'Waterflow switches, all floors', ev:'Confirm appropriate startup sequence' },
+  { id:'i3', lbl:'Duct detectors serving active fans', ev:'Confirm response and panel indication' },
+];
+const VISUAL_ITEMS = [
+  { id:'v1', cat:'Stair / Shaft', lbl:'Smokeproof enclosure barrier construction' },
+  { id:'v2', cat:'Stair / Shaft', lbl:'Fire stopping at penetrations' },
+  { id:'v3', cat:'Stair / Shaft', lbl:'Penetrations serve the stairwell' },
+  { id:'v4', cat:'Stair / Shaft', lbl:'Smoke barrier locations match drawings' },
+  { id:'v5', cat:'Stair / Shaft', lbl:'Ductwork / inlets match approved drawings' },
+  { id:'v6', cat:'Doors', lbl:'Fire / smoke rating labels at doors and frames' },
+  { id:'v7', cat:'Doors', lbl:'Smoke gasket seals at door frames' },
+  { id:'v8', cat:'Doors', lbl:'Doors open freely, self-close, and latch' },
+  { id:'v9', cat:'Doors', lbl:'Adjustable sweeps / undercut ≤ ¾"' },
+  { id:'v10', cat:'Fans', lbl:'Equipment labels match drawings / report' },
+  { id:'v11', cat:'Fans', lbl:'1.5× belts provided (if belt driven)' },
+  { id:'v12', cat:'Fans', lbl:'Installation location matches drawings' },
+  { id:'v13', cat:'Fans', lbl:'Electrical disconnect monitored by FA system' },
+  { id:'v14', cat:'Fans', lbl:'Means for positive confirmation of airflow' },
+  { id:'v15', cat:'Dampers', lbl:'Barometric relief dampers freely move and operate' },
+  { id:'v16', cat:'Dampers', lbl:'Rated dampers listed (Class II) and labeled' },
+  { id:'v17', cat:'Dampers', lbl:'Damper locations match drawings and panel' },
+  { id:'v18', cat:'Ductwork', lbl:'Ductwork within rated enclosure or 2-hr construction' },
+];
+
+// Pressure blocks: [{label, short, prefix, cl, kind}]
+// With a vestibule system every stair is measured at TWO doors in series:
+// the stair door (stair to vestibule) and the vestibule door (vestibule to corridor).
+function pressBlocks(p){
+  const b = [];
+  const vest = !!p.systems.vest;
+  const stairs = (p.systems.stair || vest) ? (p.stairwells || []) : [];
+  stairs.forEach(n => {
+    b.push({ label: vest ? n + ' (stair door)' : n, short: n, prefix: n, cl:true, kind: vest ? 'stairv' : 'stair' });
+    if (vest) b.push({ label: n + ' (vestibule door)', short: n + ' vest', prefix: 'VEST_' + hwKey(n), cl:true, kind:'vest' });
+  });
+  getHoistwayNames(p).forEach(h => b.push({ label:h, short:h, prefix:'EL_'+hwKey(h), cl:false, kind:'elev' }));
+  if (p.systems.corr) b.push({ label:'Corridor', short:'Corridor', prefix:'CORR', cl:false, kind:'corr' });
+  return b;
+}
+const DP_MIN = 0.05, FORCE_MAX = 30;
+function pressFlag(field, v){ if (v === '' || v == null) return false; const n = +v; if (isNaN(n)) return false; if (field === 'dp') return n < DP_MIN; if (field === 'brk' || field === 'swg') return n > FORCE_MAX; return false; }
+
+// Progress summary
+function progress(p){
+  let total = 0, done = 0, fails = 0;
+  const count = v => { total++; if (v) done++; if (v === 'fail') fails++; };
+  p.equipment.forEach(e => getSeqTests(e).forEach((_,ti) => count(seqGet(p,e,ti))));
+  [...FAULT_TESTS,...EMERG_TESTS,...INIT_TESTS,...VISUAL_ITEMS].forEach(t => count(p.seqResults[t.id] || ''));
+  const cols = getMatrixCols(p); typicalFloors(p).forEach(f => cols.forEach(c => count(p.matrixResults[`${f}_${c.key}`] || '')));
+  getZones(p).forEach(z => ['fans','dampers','isolate'].forEach(k => count(p.zoneResults[`${z.zone}_${k}`] || '')));
+  return { total, done, fails, pct: total ? Math.round(done/total*100) : 0 };
+}
+function hasResults(p){ return Object.values(p.seqResults).some(Boolean) || Object.values(p.matrixResults).some(Boolean) || Object.values(p.zoneResults).some(Boolean) || Object.keys(p.floors).length > 0 || p.deficiencies.length > 0; }
+
+// Export shape = the project doc (engine-compatible), minus app-only fields we don't want to leak
+function exportJSON(p, photos){
+  const out = clone(p); delete out._local;
+  if (photos && Object.keys(photos).length) out._photos = photos;
+  return JSON.stringify(out, null, 2);
+}
+
+</script>
+<script>
+// ───────────────────────── local-first store + GitHub sync ─────────────────────────
+// Every edit lands in this device's storage first (localStorage for records, IndexedDB for photos).
+// A background loop pushes changed records to the data repository on GitHub whenever there is
+// signal, merging field by field with what other inspectors uploaded. The app itself is cached by a
+// service worker, so it opens in airplane mode.
+const LS = { projects:'scv5_projects', base:'scv5_base', dirty:'scv5_dirty', client:'scv5_client', me:'scv5_me', ui:'scv5_ui', cfg:'scv5_cfg', shas:'scv5_shas' };
+const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { console.warn('localStorage', e); } };
+const STORAGE_OK = (() => { try { localStorage.setItem('scv5_probe','1'); localStorage.removeItem('scv5_probe'); return true; } catch { return false; } })();
+
+const S = {
+  projects: lsGet(LS.projects, {}),      // id -> project (live local copy)
+  base: lsGet(LS.base, {}),              // id -> last copy confirmed on GitHub
+  shas: lsGet(LS.shas, {}),              // id -> blob sha of projects/<id>.json on GitHub
+  dirty: new Set(lsGet(LS.dirty, [])),
+  clientId: lsGet(LS.client, null) || (() => { const c = uid('c'); lsSet(LS.client, c); return c; })(),
+  me: lsGet(LS.me, ''),
+  cfg: { owner:'wfletcher13', repo:'sc-inspect-data', token:'', anthropicKey:'', model:'claude-sonnet-4-5', ...lsGet(LS.cfg, {}) },
+  online: navigator.onLine, syncing: false, lastPull: 0, ghOk: null, ghError: '',
+  photos: {},                            // photoId -> {dataUrl, caption, ts, projectId, pending}
+  currentId: null, view: 'home', homeTab: 'active', pressMode: 'shaft', pressSub: 0,
+  chat: [], chatBusy: false,
+};
+const ui = lsGet(LS.ui, {}); S.currentId = ui.currentId || null; S.view = ui.view || 'home'; S.pressMode = ui.pressMode || 'shaft';
+function persist(){ lsSet(LS.projects, S.projects); lsSet(LS.base, S.base); lsSet(LS.shas, S.shas); lsSet(LS.dirty, [...S.dirty]); lsSet(LS.ui, { currentId:S.currentId, view:S.view, pressMode:S.pressMode }); }
+function saveCfg(){ lsSet(LS.cfg, S.cfg); }
+const ghConfigured = () => !!(S.cfg.owner && S.cfg.repo && S.cfg.token);
+
+// ── merge rules (three-way, field level; filled beats blank) ──
+const SCALAR_OBJ = ['info','systems'];
+const SCALAR_PLAIN = ['name','status','deletedAt','completedAt','sequenceNotes','notes','stairwells','hoistways','created'];
+const MAP_FIELDS = ['seqResults','matrixResults','zoneResults','floors'];
+const KEYED = { equipment:'tag', deficiencies:'id', sequence:'id' };
+const same = (a,b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+const blank = v => v === '' || v == null || (Array.isArray(v) && v.length === 0) || (typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0);
+function pick(localV, remoteV, baseV, path, log){
+  if (same(localV, baseV)) return remoteV;
+  if (blank(localV) && !blank(remoteV)) return remoteV;
+  if (!same(remoteV, baseV) && !blank(remoteV) && !same(remoteV, localV)) log.push({ path, kept: localV, dropped: remoteV });
+  return localV;
+}
+function mergeKeyed(key, L, R, B, path, log){
+  L = L || []; R = R || []; B = B || [];
+  const by = arr => Object.fromEntries(arr.map(x => [x && x[key], x]));
+  const l = by(L), r = by(R), b = by(B);
+  const out = []; const seen = new Set();
+  const order = [...R.map(x => x[key]), ...L.map(x => x[key]).filter(k => !(k in r))];
+  for (const k of order) {
+    if (seen.has(k)) continue; seen.add(k);
+    const inL = k in l, inR = k in r, inB = k in b;
+    if (inL && inR) { const item = { ...r[k] }; for (const f of new Set([...Object.keys(l[k]), ...Object.keys(r[k])])) item[f] = pick(l[k][f], r[k][f], inB ? b[k][f] : undefined, `${path}.${k}.${f}`, log); out.push(item); }
+    else if (inL && !inR) { if (!(inB && same(l[k], b[k]))) out.push(l[k]); }
+    else if (!inL && inR) { if (!(inB && same(r[k], b[k]))) out.push(r[k]); }
+  }
+  return out;
+}
+function threeWayMerge(base, local, remote){
+  base = base || {}; const log = [];
+  const out = clone(remote);
+  for (const f of SCALAR_PLAIN) out[f] = pick(local[f], remote[f], base[f], f, log);
+  for (const f of SCALAR_OBJ) { out[f] = { ...(remote[f]||{}) }; const keys = new Set([...Object.keys(local[f]||{}), ...Object.keys(remote[f]||{})]); for (const k of keys) out[f][k] = pick((local[f]||{})[k], (remote[f]||{})[k], (base[f]||{})[k], `${f}.${k}`, log); }
+  for (const f of MAP_FIELDS) { out[f] = { ...(remote[f]||{}) }; const keys = new Set([...Object.keys(local[f]||{}), ...Object.keys(remote[f]||{})]); for (const k of keys) { const v = pick((local[f]||{})[k], (remote[f]||{})[k], (base[f]||{})[k], `${f}.${k}`, log); if (v === '' || v == null) delete out[f][k]; else out[f][k] = v; } }
+  for (const [f,key] of Object.entries(KEYED)) out[f] = mergeKeyed(key, local[f], remote[f], base[f], f, log);
+  out._meta = { ...(remote._meta||{}), ...(local._meta||{}) };
+  out._meta.conflicts = mergeKeyed('id', (local._meta||{}).conflicts, (remote._meta||{}).conflicts, (base._meta||{}).conflicts, '_meta.conflicts', log);
+  out.updated = new Date().toISOString();
+  if (log.length) out._conflicts = [...(remote._conflicts||[]), ...log.map(x => ({ ...x, at: out.updated, by: S.me || S.clientId }))].slice(-12);
+  return out;
+}
+
+// ── mutations ──
+function updateProject(id, fn, opts={}){
+  const p = S.projects[id]; if (!p) return;
+  const next = fn(clone(p)) || p;
+  next.updated = new Date().toISOString();
+  if (next.info && next.info.building) next.name = next.info.building;
+  S.projects[id] = next; S.dirty.add(id); persist(); scheduleSync();
+  if (!opts.silent) render(opts);
+}
+const setPath = (obj, path, val) => { const parts = path.split('.'); let o = obj; for (let i=0;i<parts.length-1;i++) { if (o[parts[i]] == null) o[parts[i]] = {}; o = o[parts[i]]; } o[parts.at(-1)] = val; return obj; };
+function setField(id, path, val, opts={}){ updateProject(id, p => setPath(p, path, val), opts); }
+function createProject(name){ const p = blankProject(name); p.info.inspector = S.me || ''; S.projects[p.id] = p; S.dirty.add(p.id); S.currentId = p.id; S.view = 'setup'; persist(); scheduleSync(); render(); return p; }
+function importProjectText(text){
+  let raw; try { raw = JSON.parse(text); } catch { throw new Error('That is not valid JSON.'); }
+  const p = normalizeProject(raw);
+  if (S.projects[p.id]) p.id = uid('p');
+  p.status = 'active';
+  if (raw && raw._photos) for (const [pid, ph] of Object.entries(raw._photos)) { S.photos[pid] = { ...ph, projectId: p.id, pending: true }; idbPut(pid, S.photos[pid]); }
+  S.projects[p.id] = p; S.dirty.add(p.id); S.currentId = p.id; S.view = 'setup'; persist(); scheduleSync(); render();
+  return p;
+}
+
+// ── GitHub contents API ──
+const GH_API = 'https://api.github.com';
+const b64enc = s => btoa(unescape(encodeURIComponent(s)));
+const b64dec = s => decodeURIComponent(escape(atob(s.replace(/\n/g,''))));
+async function gh(path, opts={}){
+  const r = await fetch(GH_API + path, { ...opts, headers: { 'Authorization': 'Bearer ' + S.cfg.token, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', ...(opts.headers||{}) } });
+  if (r.status === 404) return { status:404, json:null };
+  const text = await r.text(); let json = null; try { json = text ? JSON.parse(text) : null; } catch {}
+  if (!r.ok) { const e = new Error((json && json.message) || ('GitHub ' + r.status)); e.status = r.status; throw e; }
+  return { status: r.status, json };
+}
+const repoPath = p => `/repos/${S.cfg.owner}/${S.cfg.repo}/contents/${p}`;
+async function ghGetJson(path){ const r = await gh(repoPath(path)); if (r.status === 404) return null; return { data: JSON.parse(b64dec(r.json.content)), sha: r.json.sha }; }
+async function ghPut(path, content, sha, message){ const body = { message, content, ...(sha ? { sha } : {}) }; const r = await gh(repoPath(path), { method:'PUT', body: JSON.stringify(body) }); return r.json.content.sha; }
+async function ghDelete(path, sha, message){ await gh(repoPath(path), { method:'DELETE', body: JSON.stringify({ message, sha }) }); }
+async function ghList(dir){ const r = await gh(repoPath(dir)); if (r.status === 404) return []; return Array.isArray(r.json) ? r.json : []; }
+async function ghTest(){ try { const r = await gh(`/repos/${S.cfg.owner}/${S.cfg.repo}`); S.ghOk = true; S.ghError = ''; return r.json; } catch (e) { S.ghOk = false; S.ghError = e.message; throw e; } }
+
+// ── sync engine ──
+let syncTimer = null;
+function scheduleSync(ms=1200){ clearTimeout(syncTimer); syncTimer = setTimeout(syncNow, ms); updateSyncBadge(); }
+function updateSyncBadge(){
+  const el = document.getElementById('syncBadge'), lb = document.getElementById('syncLabel'); if (!el) return;
+  let st = 'local', txt = 'Not connected';
+  if (ghConfigured()) {
+    if (!S.online) { st='offline'; txt = S.dirty.size ? `Offline · ${S.dirty.size} to upload` : 'Offline · up to date'; }
+    else if (S.ghOk === false) { st='offline'; txt = 'Sync error'; }
+    else if (S.syncing) { st='pending'; txt='Syncing…'; }
+    else if (S.dirty.size) { st='pending'; txt=`${S.dirty.size} to upload`; }
+    else { st='ok'; txt='Synced'; }
+  }
+  if (!STORAGE_OK) { txt += ' · no local copy'; if (st === 'ok') st = 'pending'; }
+  el.className = 'sync ' + st; lb.textContent = txt;
+  const m = document.getElementById('mSync'); if (m) { m.className = 'sync ' + st; m.querySelector('span:last-child').textContent = txt; }
+}
+function adoptRemote(id, remote, sha){
+  const local = S.projects[id];
+  if (S.dirty.has(id) && local) S.projects[id] = threeWayMerge(S.base[id], local, remote);
+  else S.projects[id] = clone(remote);
+  S.base[id] = clone(remote); S.shas[id] = sha;
+}
+async function pushOne(id){
+  const local = S.projects[id]; if (!local) { S.dirty.delete(id); return; }
+  const path = `projects/${id}.json`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const remote = await ghGetJson(path);
+    let merged = remote ? threeWayMerge(S.base[id], local, remote.data) : clone(local);
+    merged.id = id;
+    const body = JSON.stringify(merged, null, 1);
+    if (body.length > 900000) toast('This building record is very large; consider trimming notes.');
+    try {
+      const sha = await ghPut(path, b64enc(body), remote ? remote.sha : undefined, `${S.me || 'inspector'}: ${merged.name || id}`);
+      S.projects[id] = merged; S.base[id] = clone(merged); S.shas[id] = sha; S.dirty.delete(id);
+      return (merged._conflicts || []).length - ((remote && remote.data._conflicts) || []).length;
+    } catch (e) { if (e.status === 409 || e.status === 422) continue; throw e; }   // someone wrote first: re-read and merge again
+  }
+  throw new Error('Could not upload ' + id + ' after 3 attempts');
+}
+async function pullAll(){
+  const list = await ghList('projects');
+  const seen = new Set();
+  for (const f of list) {
+    if (!f.name.endsWith('.json')) continue;
+    const id = f.name.slice(0, -5); seen.add(id);
+    if (S.shas[id] === f.sha && S.projects[id]) continue;          // unchanged on the server since we last saw it
+    const got = await ghGetJson(`projects/${f.name}`); if (!got || !got.data || !got.data.info) continue;
+    adoptRemote(id, normalizeProject({ ...got.data, id }), got.sha);
+  }
+  for (const id of Object.keys(S.projects)) if (!seen.has(id) && !S.dirty.has(id) && S.base[id]) { delete S.projects[id]; delete S.base[id]; delete S.shas[id]; if (S.currentId === id) { S.currentId = null; S.view = 'home'; } }
+  S.lastPull = Date.now();
+}
+async function syncNow(force){
+  if (!ghConfigured() || !S.online || S.syncing) { updateSyncBadge(); return; }
+  S.syncing = true; updateSyncBadge();
+  let conflicts = 0;
+  try {
+    if (force || Date.now() - S.lastPull > 20000 || !S.dirty.size) await pullAll();
+    for (const id of [...S.dirty]) { const c = await pushOne(id); conflicts += Math.max(0, c || 0); }
+    await syncPhotos();
+    S.ghOk = true; S.ghError = '';
+  } catch (e) { console.warn('sync', e); S.ghOk = false; S.ghError = e.message || String(e); if (e.status === 401) toast('GitHub token rejected. Open Settings and check it.'); }
+  S.syncing = false; persist(); updateSyncBadge();
+  if (conflicts > 0) toast(`Merged ${conflicts} overlapping edit${conflicts>1?'s':''}; both versions kept in Sync log.`);
+  if (S.dirty.size && S.online && S.ghOk) scheduleSync(8000);
+  render({ keepFocus: true });
+}
+window.addEventListener('online', () => { S.online = true; updateSyncBadge(); scheduleSync(500); });
+window.addEventListener('offline', () => { S.online = false; updateSyncBadge(); });
+
+// ── photos (IndexedDB cache + photos/<pid>.jpg in the repo) ──
+const IDB = { db: null };
+function idbOpen(){ return new Promise((res, rej) => { if (IDB.db) return res(IDB.db); const r = indexedDB.open('scv5', 1); r.onupgradeneeded = () => r.result.createObjectStore('photos'); r.onsuccess = () => { IDB.db = r.result; res(IDB.db); }; r.onerror = () => rej(r.error); }); }
+async function idbPut(k, v){ try { const d = await idbOpen(); await new Promise((res,rej) => { const t = d.transaction('photos','readwrite'); t.objectStore('photos').put(v, k); t.oncomplete = res; t.onerror = () => rej(t.error); }); } catch (e) { console.warn('idb', e); } }
+async function idbAll(){ try { const d = await idbOpen(); return await new Promise((res,rej) => { const out = {}; const t = d.transaction('photos','readonly'); const c = t.objectStore('photos').openCursor(); c.onsuccess = () => { const cur = c.result; if (cur) { out[cur.key] = cur.value; cur.continue(); } else res(out); }; c.onerror = () => rej(c.error); }); } catch { return {}; } }
+async function idbDel(k){ try { const d = await idbOpen(); d.transaction('photos','readwrite').objectStore('photos').delete(k); } catch {} }
+async function loadPhotosCache(){ S.photos = await idbAll(); }
+function shrinkImage(file, max=1280, q=0.72){
+  return new Promise((res, rej) => {
+    const img = new Image(); const url = URL.createObjectURL(file);
+    img.onload = () => { const s = Math.min(1, max / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width*s); c.height = Math.round(img.height*s); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', q)); };
+    img.onerror = rej; img.src = url;
+  });
+}
+async function addPhoto(projectId, defId, file){
+  let dataUrl = await shrinkImage(file);
+  if (dataUrl.length > 400000) dataUrl = await shrinkImage(file, 1024, 0.62);
+  const pid = uid('ph'); const ph = { dataUrl, caption:'', ts: new Date().toISOString(), projectId, pending: true, by: S.me || '' };
+  S.photos[pid] = ph; await idbPut(pid, ph);
+  updateProject(projectId, p => { const d = p.deficiencies.find(x => x.id === defId); if (d) d.photos = [...(d.photos||[]), pid]; return p; });
+  return pid;
+}
+async function syncPhotos(){
+  for (const [pid, ph] of Object.entries(S.photos)) {
+    if (!ph.pending) continue;
+    const path = `photos/${ph.projectId}/${pid}.jpg`, meta = `photos/${ph.projectId}/${pid}.json`;
+    let sha; try { const r = await gh(repoPath(path)); if (r.status !== 404) sha = r.json.sha; } catch {}
+    await ghPut(path, ph.dataUrl.split(',',2)[1], sha, `photo ${pid}`);
+    let msha; try { const r = await gh(repoPath(meta)); if (r.status !== 404) msha = r.json.sha; } catch {}
+    await ghPut(meta, b64enc(JSON.stringify({ caption: ph.caption || '', ts: ph.ts, by: ph.by || '' })), msha, `photo meta ${pid}`);
+    ph.pending = false; await idbPut(pid, ph);
+  }
+}
+async function fetchPhoto(projectId, pid){
+  if (S.photos[pid]) return S.photos[pid];
+  if (!ghConfigured() || !S.online) return null;
+  try {
+    const r = await gh(repoPath(`photos/${projectId}/${pid}.jpg`)); if (r.status === 404) return null;
+    let content = r.json.content;
+    if (!content && r.json.download_url) { const raw = await fetch(GH_API + `/repos/${S.cfg.owner}/${S.cfg.repo}/contents/photos/${projectId}/${pid}.jpg`, { headers: { 'Authorization': 'Bearer ' + S.cfg.token, 'Accept': 'application/vnd.github.raw' } }); const buf = await raw.arrayBuffer(); content = btoa(String.fromCharCode(...new Uint8Array(buf))); }
+    let caption = ''; try { const m = await ghGetJson(`photos/${projectId}/${pid}.json`); if (m) caption = m.data.caption || ''; } catch {}
+    const ph = { dataUrl: 'data:image/jpeg;base64,' + content.replace(/\n/g,''), caption, projectId, pending:false };
+    S.photos[pid] = ph; await idbPut(pid, ph); return ph;
+  } catch (e) { console.warn(e); return null; }
+}
+async function removePhoto(projectId, defId, pid){
+  updateProject(projectId, p => { const d = p.deficiencies.find(x => x.id === defId); if (d) d.photos = (d.photos||[]).filter(x => x !== pid); return p; });
+  delete S.photos[pid]; await idbDel(pid);
+  if (ghConfigured() && S.online) for (const path of [`photos/${projectId}/${pid}.jpg`, `photos/${projectId}/${pid}.json`]) { try { const r = await gh(repoPath(path)); if (r.status !== 404) await ghDelete(path, r.json.sha, `remove ${pid}`); } catch {} }
+}
+async function purgeProject(id){
+  const p = S.projects[id];
+  delete S.projects[id]; delete S.base[id]; S.dirty.delete(id); persist();
+  if (!ghConfigured() || !S.online) return;
+  try {
+    const r = await gh(repoPath(`projects/${id}.json`)); if (r.status !== 404) await ghDelete(`projects/${id}.json`, r.json.sha, `delete ${id}`);
+    const files = await ghList(`photos/${id}`); for (const f of files) { try { await ghDelete(`photos/${id}/${f.name}`, f.sha, `delete ${id} photos`); } catch {} }
+    delete S.shas[id]; persist();
+  } catch (e) { toast('Could not delete on GitHub: ' + e.message); }
+}
+
+</script>
+<script>
+// ───────────────────────── UI core ─────────────────────────
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
+const I = {
+  setup:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="13" rx="2"/><path d="M3 9l9-6 9 6"/></svg>',
+  equip:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>',
+  seq:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
+  matrix:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
+  zones:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>',
+  press:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>',
+  defic:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h16.9a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>',
+  items:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
+  reports:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></svg>',
+  home:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg>',
+};
+const VIEWS = [
+  { id:'setup', label:'Setup' }, { id:'equip', label:'Equipment', cnt: p => p.equipment.length },
+  { id:'seq', label:'Sequence tests' }, { id:'matrix', label:'Floor matrix' }, { id:'zones', label:'Lower-level zones', cnt: p => getZones(p).length },
+  { id:'press', label:'Pressure & doors' }, { id:'defic', label:'Deficiencies', cnt: p => p.deficiencies.length },
+  { id:'items', label:'Open items', cnt: p => (p._meta.conflicts||[]).filter(c => c.status !== 'resolved' && c.status !== 'na').length },
+  { id:'reports', label:'Reports & data' },
+];
+const MOBILE_VIEWS = ['setup','equip','seq','matrix','zones','press','defic','items','reports'];
+const MOBILE_SHORT = { setup:'Setup', equip:'Equip', seq:'Seq', matrix:'Matrix', zones:'Zones', press:'Press', defic:'Defic', items:'Items', reports:'Reports' };
+
+let toastTimer;
+function toast(msg, action){
+  const t = $('#toast'); t.innerHTML = `<span>${esc(msg)}</span>` + (action ? `<button id="toastAct">${esc(action.label)}</button>` : '');
+  if (action) $('#toastAct').onclick = () => { action.fn(); t.classList.remove('show'); };
+  t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), action ? 6000 : 2600);
+}
+function modal(html, onMount){
+  const root = $('#modalRoot'); root.innerHTML = `<div class="modal-bg" id="modalBg"><div class="modal" role="dialog">${html}</div></div>`;
+  $('#modalBg').addEventListener('click', e => { if (e.target.id === 'modalBg') closeModal(); });
+  if (onMount) onMount(root);
+}
+function closeModal(){ $('#modalRoot').innerHTML = ''; }
+function confirmBox(title, body, okLabel, fn, danger){
+  modal(`<h3>${esc(title)}</h3><p class="muted">${body}</p><div class="acts"><button id="mCancel">Cancel</button><button id="mOk" class="${danger?'btn-danger':'btn-primary'}">${esc(okLabel)}</button></div>`, () => { $('#mCancel').onclick = closeModal; $('#mOk').onclick = () => { closeModal(); fn(); }; });
+}
+function promptBox(title, label, value, okLabel, fn){
+  modal(`<h3>${esc(title)}</h3><label class="lbl" for="mIn">${esc(label)}</label><input id="mIn" value="${esc(value)}"><div class="acts"><button id="mCancel">Cancel</button><button id="mOk" class="btn-primary">${esc(okLabel)}</button></div>`, () => { const inp = $('#mIn'); inp.focus(); inp.select(); $('#mCancel').onclick = closeModal; const ok = () => { const v = inp.value.trim(); if (!v) return; closeModal(); fn(v); }; $('#mOk').onclick = ok; inp.onkeydown = e => { if (e.key === 'Enter') ok(); }; });
+}
+
+const openSecs = lsGet('scv4_secs', {});
+function sec(id, title, body, opts={}){
+  const open = openSecs[id] == null ? (opts.open !== false) : openSecs[id];
+  return `<section class="sec${open?'':' closed'}" data-sec="${id}"><div class="sec-h" data-sech="${id}"><h3>${title}</h3>${opts.right||''}<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div><div class="sec-b${opts.nopad?' nopad':''}">${body}</div></section>`;
+}
+function pfn(val, attrs){ return `<div class="pfn"><button data-v="pass" ${attrs} class="${val==='pass'?'p':''}">P</button><button data-v="fail" ${attrs} class="${val==='fail'?'f':''}">F</button><button data-v="na" ${attrs} class="${val==='na'?'n':''}">N/A</button></div>`; }
+function switchEl(checked, attrs){ return `<label class="switch"><input type="checkbox" ${checked?'checked':''} ${attrs}><span></span></label>`; }
+
+function cur(){ return S.currentId ? S.projects[S.currentId] : null; }
+function go(view, id){ if (id !== undefined) S.currentId = id; S.view = view; persist(); render(); $('#scroll').scrollTop = 0; }
+
+// Render with focus preservation (for input-heavy views re-rendered by sync)
+function render(opts={}){
+  const p = cur();
+  if (S.view !== 'home' && (!p || p.status === 'trash')) { S.view = 'home'; }
+  const active = document.activeElement; const focusKey = opts.keepFocus && active && active.dataset && active.dataset.k ? active.dataset.k : null;
+  const selStart = focusKey && active.selectionStart != null ? active.selectionStart : null;
+  const scrollTop = $('#scroll').scrollTop;
+  renderNav(); renderTopbar();
+  const v = $('#view');
+  const cp = cur();
+  v.innerHTML = S.view === 'home' ? viewHome() : ({ setup:viewSetup, equip:viewEquip, seq:viewSeq, matrix:viewMatrix, zones:viewZones, press:viewPress, defic:viewDefic, items:viewItems, reports:viewReports })[S.view](cp);
+  bindCommon(v); bindView(v, cp);
+  $('#chatFab').hidden = !cp || S.view === 'home';
+  $('#scroll').scrollTop = scrollTop;
+  if (focusKey) { const el = v.querySelector(`[data-k="${focusKey}"]`); if (el) { el.focus(); if (selStart != null && el.setSelectionRange) try { el.setSelectionRange(selStart, selStart); } catch {} } }
+  updateSyncBadge();
+}
+function renderNav(){
+  const p = cur();
+  const side = $('#sideNav');
+  side.innerHTML = `<button data-go="home" class="${S.view==='home'?'on':''}">${I.home} All buildings</button><div class="sep"></div>` +
+    (p ? VIEWS.map(v => `<button data-go="${v.id}" class="${S.view===v.id?'on':''}">${I[v.id]} ${v.label}${v.cnt ? `<span class="cnt">${v.cnt(p)}</span>` : ''}</button>`).join('') : `<div class="empty small">Open a building to start.</div>`);
+  const mob = $('#mobileNav');
+  mob.innerHTML = p && S.view !== 'home' ? MOBILE_VIEWS.map(id => `<button data-go="${id}" class="${S.view===id?'on':''}">${I[id]}<span>${MOBILE_SHORT[id]}</span></button>`).join('') : '';
+  mob.style.display = p && S.view !== 'home' ? '' : 'none';
+  $$('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
+}
+function renderTopbar(){
+  const p = cur(); const tb = $('#topbar');
+  if (S.view === 'home' || !p) {
+    tb.innerHTML = `<div class="brand mobile-bar"><div class="brand-mark">EB</div><div class="brand-name">SC Inspect</div></div><div class="grow"></div><div class="sync mobile-bar" id="mSync"><span class="dot"></span><span></span></div><button class="btn-sm" id="tbSettings">Settings</button><button class="btn-primary btn-sm" id="tbNew">+ New building</button>`;
+    $('#tbNew').onclick = newBuilding; $('#tbSettings').onclick = settingsDialog;
+  } else {
+    const pr = progress(p);
+    tb.innerHTML = `<button class="btn-sm btn-ghost" id="tbBack" title="All buildings">‹ Buildings</button><select id="tbPick">${Object.values(S.projects).filter(x => x.status !== 'trash').sort((a,b) => (a.name||'').localeCompare(b.name||'')).map(x => `<option value="${x.id}" ${x.id===p.id?'selected':''}>${esc(x.name || 'Untitled')}</option>`).join('')}</select><span class="faint small mono">${pr.done}/${pr.total} · ${pr.pct}%${pr.fails ? ` · <span class="flag">${pr.fails} fail</span>` : ''}</span><div class="grow"></div><div class="sync mobile-bar" id="mSync"><span class="dot"></span><span></span></div>`;
+    $('#tbBack').onclick = () => go('home'); $('#tbPick').onchange = e => go(S.view, e.target.value);
+  }
+}
+function bindCommon(root){
+  $$('[data-sech]', root).forEach(h => h.onclick = () => { const s = h.parentElement; s.classList.toggle('closed'); openSecs[h.dataset.sech] = !s.classList.contains('closed'); lsSet('scv4_secs', openSecs); });
+  // text inputs bound to a project path: data-path (value) — no re-render while typing
+  $$('[data-path]', root).forEach(el => {
+    const ev = el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'date' ? 'change' : 'input';
+    el.addEventListener(ev, () => {
+      let val = el.type === 'checkbox' ? el.checked : el.value;
+      if (el.dataset.num !== undefined) val = val === '' ? '' : (isNaN(+val) ? val : +val);
+      setField(S.currentId, el.dataset.path, val, { silent: el.dataset.rerender === undefined });
+      if (el.dataset.rerender !== undefined) render({ keepFocus:true }); else { renderTopbar(); renderNav(); }
+    });
+  });
+  $$('[data-pf]', root).forEach(b => b.onclick = () => { const [map, key] = b.dataset.pf.split('|'); const v = b.dataset.v; updateProject(S.currentId, p => { const cur = p[map][key] || ''; if (cur === v) delete p[map][key]; else p[map][key] = v; return p; }, { keepFocus:true }); });
+}
+function newBuilding(){ promptBox('New building', 'Building name', '', 'Create', name => { createProject(name); toast('Created ' + name); }); }
+
+</script>
+<script>
+// ───────────────────────── Home ─────────────────────────
+function fmtDate(iso){ if (!iso) return ''; try { return new Date(iso).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }); } catch { return ''; } }
+function viewHome(){
+  const all = Object.values(S.projects);
+  const active = all.filter(p => p.status === 'active'), done = all.filter(p => p.status === 'completed'), trash = all.filter(p => p.status === 'trash');
+  const list = S.homeTab === 'active' ? active : S.homeTab === 'completed' ? done : trash;
+  const inProg = active.filter(p => hasResults(p)).length;
+  const storeNote = STORAGE_OK ? '' : `<div class="card" style="border-color:var(--fail-bd);background:var(--fail-bg)"><b>This browser is not keeping a local copy.</b> Entries reach the team database only while you have signal, and a reload during a signal gap loses unsynced entries. On iPhone, open the app in Safari directly (not inside another app) or add it to the Home Screen, then reload this page.</div>`;
+  const dbNote = !ghConfigured() ? `<div class="card" style="border-color:var(--warn-bd);background:var(--warn-bg)"><b>Not connected to the team repository.</b> Buildings are saved on this device only. Open <a href="#" id="openSettings">Settings</a> and enter the repository and access token to sync with the team.</div>`
+    : S.ghOk === false ? `<div class="card" style="border-color:var(--fail-bd);background:var(--fail-bg)"><b>Sync error:</b> ${esc(S.ghError)}. Entries are kept on this device and will upload once the connection works. <a href="#" id="openSettings">Settings</a></div>` : '';
+  const card = p => {
+    const pr = progress(p); const s = p.systems || {};
+    const sysChips = [s.stair&&'Stair', s.vest&&'Vestibule', s.elev&&'Elevator', s.corr&&'Corridor', s.lobby&&'Lobby exhaust'].filter(Boolean).join(' · ');
+    const dirty = S.dirty.has(p.id);
+    return `<div class="bcard">
+      <div><h3>${esc(p.name || 'Untitled')}</h3><div class="addr">${esc(p.info.address || 'No address yet')}</div></div>
+      <div class="meta"><span>Test ${esc(fmtDate(p.info.date) || 'not set')}</span><span>Levels ${esc(p.info.floorLow)}–${esc(p.info.floorHigh || '?')}</span><span>${p.equipment.length} devices</span>${dirty ? '<span class="flag">unsynced</span>' : ''}</div>
+      <div class="small muted">${esc(sysChips || 'No systems selected')}</div>
+      <div><div class="prog"><i style="width:${pr.pct}%"></i></div><div class="small faint mono" style="margin-top:3px">${pr.done}/${pr.total} results · ${p.deficiencies.length} deficienc${p.deficiencies.length===1?'y':'ies'}${pr.fails?` · <span class="flag">${pr.fails} fail</span>`:''}</div></div>
+      <div class="acts">
+        ${p.status === 'trash' ? `<button class="btn-sm" data-act="restore" data-id="${p.id}">Restore</button><button class="btn-sm btn-danger" data-act="purge" data-id="${p.id}">Delete forever</button>`
+        : p.status === 'completed' ? `<button class="btn-sm btn-primary" data-act="open" data-id="${p.id}">Open</button><button class="btn-sm" data-act="reactivate" data-id="${p.id}">Back to active</button><button class="btn-sm" data-act="export" data-id="${p.id}">Export JSON</button>`
+        : `<button class="btn-sm btn-primary" data-act="open" data-id="${p.id}">Open</button><button class="btn-sm" data-act="rename" data-id="${p.id}">Rename</button><button class="btn-sm" data-act="export" data-id="${p.id}">Export JSON</button><button class="btn-sm" data-act="complete" data-id="${p.id}">Mark complete</button><button class="btn-sm btn-ghost" data-act="trash" data-id="${p.id}" title="Move to trash">Trash</button>`}
+      </div></div>`;
+  };
+  return `<div class="hero"><div><h2>Buildings</h2><p>${active.length} active · ${inProg} with results entered · ${done.length} completed</p></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><label class="small muted" for="meName">Inspector</label><input id="meName" value="${esc(S.me)}" placeholder="Your name" style="width:160px;padding:6px 8px"><button id="btnImport">Import JSON</button><button class="btn-primary" id="btnNew">+ New building</button></div></div>
+    ${storeNote}${dbNote}
+    <div class="dtabs"><button data-ht="active" class="${S.homeTab==='active'?'on':''}">Active (${active.length})</button><button data-ht="completed" class="${S.homeTab==='completed'?'on':''}">Completed (${done.length})</button><button data-ht="trash" class="${S.homeTab==='trash'?'on':''}">Trash (${trash.length})</button></div>
+    ${list.length ? `<div class="bcards">${list.sort((a,b) => (b.updated||'').localeCompare(a.updated||'')).map(card).join('')}</div>` : `<div class="empty">${S.homeTab === 'active' ? 'No active buildings. Create one or import a SC Inspect JSON.' : 'Nothing here.'}</div>`}`;
+}
+function bindHome(root){
+  $$('[data-ht]', root).forEach(b => b.onclick = () => { S.homeTab = b.dataset.ht; render(); });
+  $('#btnNew', root).onclick = newBuilding; $('#btnImport', root).onclick = importDialog;
+  $('#meName', root).onchange = e => { S.me = e.target.value.trim(); lsSet(LS.me, S.me); };
+  const os = $('#openSettings', root); if (os) os.onclick = e => { e.preventDefault(); settingsDialog(); };
+  $$('[data-act]', root).forEach(b => b.onclick = () => {
+    const id = b.dataset.id, p = S.projects[id]; const act = b.dataset.act;
+    if (act === 'open') go('setup', id);
+    else if (act === 'rename') promptBox('Rename building', 'Name', p.name, 'Save', v => updateProject(id, x => { x.name = v; if (!x.info.building) x.info.building = v; return x; }));
+    else if (act === 'export') exportProject(p);
+    else if (act === 'complete') updateProject(id, x => { x.status = 'completed'; x.completedAt = new Date().toISOString(); return x; });
+    else if (act === 'reactivate') updateProject(id, x => { x.status = 'active'; return x; });
+    else if (act === 'trash') { updateProject(id, x => { x.status = 'trash'; x.deletedAt = new Date().toISOString(); return x; }); toast('Moved to Trash', { label:'Undo', fn: () => updateProject(id, x => { x.status = 'active'; return x; }) }); }
+    else if (act === 'restore') updateProject(id, x => { x.status = 'active'; return x; });
+    else if (act === 'purge') confirmBox('Delete forever?', `<b>${esc(p.name)}</b> and its photos will be removed for everyone. This cannot be undone.`, 'Delete forever', async () => { await purgeProject(id); render(); }, true);
+  });
+}
+function importDialog(){
+  modal(`<h3>Import a SC Inspect JSON</h3><p class="hint">Paste an export (from this app, the old Replit app, or the intake skill) or choose a file. It is added as a new building; nothing existing is overwritten.</p>
+    <textarea id="impText" style="min-height:140px;font-family:var(--font-mono);font-size:11.5px" placeholder='{"info": {...}, "equipment": [...]}'></textarea>
+    <div style="margin-top:8px"><input type="file" id="impFile" accept="application/json,.json"></div><div class="acts"><button id="mCancel">Cancel</button><button id="mOk" class="btn-primary">Import</button></div>`, () => {
+    $('#mCancel').onclick = closeModal;
+    $('#impFile').onchange = e => { const f = e.target.files[0]; if (!f) return; f.text().then(t => { $('#impText').value = t; }); };
+    $('#mOk').onclick = () => { try { const p = importProjectText($('#impText').value); closeModal(); toast(`Imported ${p.name} (${p.equipment.length} devices)`); } catch (e) { toast(e.message); } };
+  });
+}
+async function exportProject(p, withPhotos){
+  const photos = {};
+  if (withPhotos) for (const d of p.deficiencies) for (const pid of (d.photos||[])) { const ph = await fetchPhoto(p.id, pid); if (ph) photos[pid] = { dataUrl: ph.dataUrl, caption: ph.caption||'', ts: ph.ts }; }
+  const text = exportJSON(p, photos);
+  const fname = (p.name || 'project').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'_') + '_SC_Inspect.json';
+  try { const blob = new Blob([text], { type:'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000); toast('Saved ' + fname); return; } catch {}
+  try { await navigator.clipboard.writeText(text); toast('JSON copied to clipboard'); } catch { modal(`<h3>Export</h3><textarea style="min-height:260px;font-family:var(--font-mono);font-size:11px">${esc(text)}</textarea><div class="acts"><button id="mCancel">Close</button></div>`, () => $('#mCancel').onclick = closeModal); }
+}
+
+// ───────────────────────── Setup ─────────────────────────
+function stepper(path, val){ return `<div class="stepper"><button data-step="${path}" data-d="-1">−</button><span>${val}</span><button data-step="${path}" data-d="1">+</button></div>`; }
+function chips(list, kind){ return `<div class="chips">${list.map((n,i) => `<span class="chip">${esc(n)}<button data-rm="${kind}" data-i="${i}" title="Remove">×</button></span>`).join('')}</div><div style="display:flex;gap:6px"><input id="add_${kind}" placeholder="${kind==='stairwells'?'e.g. Stair A, Stair 2B':'e.g. EL-1, Service'}" style="font-size:13px"><button data-add="${kind}" style="white-space:nowrap">+ Add</button></div>`; }
+function viewSetup(p){
+  const i = p.info, s = p.systems;
+  const info = `<div class="field"><label class="lbl" for="f_b">Building name</label><input id="f_b" data-k="info.building" data-path="info.building" value="${esc(i.building)}" placeholder="e.g. Icon Brickell Tower I"></div>
+    <div class="field"><label class="lbl" for="f_a">Address</label><input id="f_a" data-k="info.address" data-path="info.address" value="${esc(i.address)}"></div>
+    <div class="row3"><div class="field"><label class="lbl" for="f_d">Test date</label><input id="f_d" type="date" data-path="info.date" value="${esc(i.date)}"></div><div class="field"><label class="lbl" for="f_i">Inspector</label><input id="f_i" data-k="info.inspector" data-path="info.inspector" value="${esc(i.inspector)}"></div><div class="field"><label class="lbl" for="f_c">Company</label><input id="f_c" data-k="info.company" data-path="info.company" value="${esc(i.company)}"></div></div>
+    <div class="row3"><div class="field"><label class="lbl" for="f_lo">Lowest floor</label><input id="f_lo" type="number" data-path="info.floorLow" data-num data-rerender value="${esc(i.floorLow)}"><div class="small faint">−1 = B1, 0 = L</div></div>
+      <div class="field"><label class="lbl" for="f_hi">Highest floor</label><input id="f_hi" type="number" data-path="info.floorHigh" data-num data-rerender value="${esc(i.floorHigh)}" placeholder="e.g. 42"></div>
+      <div class="field"><label class="lbl" for="f_ty">First typical floor</label><input id="f_ty" type="number" data-path="info.typicalLow" data-num data-rerender value="${esc(i.typicalLow)}" placeholder="auto: ${typicalLow(p)}"><div class="small faint">Floors below are lower-level / amenity floors (A-2b zone tables)</div></div></div>
+    <div class="field" style="margin:0"><label class="lbl" for="f_code">Code basis</label><input id="f_code" data-k="info.code" data-path="info.code" value="${esc(i.code)}" list="codes"><datalist id="codes"><option value="FBC §909 / NFPA 92"><option value="FBC / NFPA 92"><option value="IBC / NFPA 92"><option value="CBC §909 / NFPA 92"><option value="NFPA 92 only"></datalist></div>`;
+  const tog = (key, label) => `<div class="tog-row"><span>${label}</span>${switchEl(!!s[key], `data-path="systems.${key}" data-rerender`)}</div>`;
+  const seqGrid = `<div class="row2" style="padding:8px 0 4px">
+      <div><div class="lbl">Exhaust</div><div class="tog-row"><span class="small">Fire floor</span>${switchEl(s.exhaustFireFloor !== false, 'data-path="systems.exhaustFireFloor" data-rerender')}</div><div class="tog-row"><span class="small">Floors above</span>${stepper('systems.exhaustAbove', s.exhaustAbove||0)}</div><div class="tog-row"><span class="small">Floors below</span>${stepper('systems.exhaustBelow', s.exhaustBelow||0)}</div></div>
+      <div><div class="lbl">Pressurization</div><div class="tog-row"><span class="small">Fire floor</span>${switchEl(!!s.pressFireFloor, 'data-path="systems.pressFireFloor" data-rerender')}</div><div class="tog-row"><span class="small">Floors above</span>${stepper('systems.corrAbove', s.corrAbove||0)}</div><div class="tog-row"><span class="small">Floors below</span>${stepper('systems.corrBelow', s.corrBelow||0)}</div></div></div>`;
+  const systems = `${tog('stair','Stair pressurization')}${s.stair ? `<div style="padding:4px 0 8px 8px"><div class="lbl">Stairwells (${p.stairwells.length})</div>${chips(p.stairwells,'stairwells')}</div>` : ''}
+    ${tog('vest','Stair vestibule pressurization')}${tog('elev','Elevator hoistway pressurization')}${s.elev ? `<div style="padding:4px 0 8px 8px"><div class="lbl">Hoistways (${p.hoistways.length})</div>${chips(p.hoistways,'hoistways')}</div>` : ''}
+    ${tog('corr','Corridor smoke control')}${s.corr ? `<div style="padding-left:8px">${seqGrid}</div>` : ''}
+    ${tog('lobby','Lobby / amenity smoke exhaust')}${tog('weekly','Weekly self-test required (UUKL)')}${tog('wflow','Waterflow switch testing included')}`;
+  const seqRows = p.sequence.map((r,idx) => `<div class="seqrow">
+      <div><label class="lbl">Initiating condition</label><input data-k="seq.${r.id}.t" data-path="sequence.${idx}.trigger" value="${esc(r.trigger)}" placeholder="e.g. Smoke detector, any typical floor"><label class="lbl" style="margin-top:6px">Floors affected</label><input data-k="seq.${r.id}.f" data-path="sequence.${idx}.floors" value="${esc(r.floors)}" placeholder="e.g. Fire floor +2 / −2"></div>
+      <div><label class="lbl">System response</label><textarea data-k="seq.${r.id}.r" data-path="sequence.${idx}.response" placeholder="e.g. Open incident-floor corridor dampers; start EF-1 and EF-2; stairs pressurize; elevators recall">${esc(r.response)}</textarea><label class="lbl" style="margin-top:6px">Equipment involved</label><div style="display:flex;gap:6px"><input data-k="seq.${r.id}.e" data-eqtext="${idx}" value="${esc((r.equipment||[]).join(', '))}" placeholder="Tags, comma separated"><button class="btn-sm btn-ghost" data-seqdel="${idx}" title="Remove">✕</button></div></div></div>`).join('');
+  const sequence = `<p class="hint">One row per initiating condition, in the order the system responds. This prints as Section 4 (Sequence of Operations) in the test plan and results report; leave it empty to use the generic wording derived from the system toggles above. Treat it as design intent until field-confirmed.</p>
+    ${seqRows}<button style="margin-top:8px" id="seqAdd">+ Add condition</button>
+    <div class="field" style="margin-top:14px"><label class="lbl" for="f_sn">Special floor notes</label><textarea id="f_sn" data-k="sequenceNotes" data-path="sequenceNotes" style="font-family:var(--font-mono);font-size:12px" placeholder="e.g. Level 57 (top): pressurization below only.\nLevels 11–12 (amenity): exhaust + make-up air on floor of incidence.">${esc(p.sequenceNotes||'')}</textarea></div>
+    ${p._meta.sequenceFull ? `<details><summary class="small muted" style="cursor:pointer">Sequence narrative from source documents</summary><pre class="prompt" style="margin-top:6px">${esc(p._meta.sequenceFull)}</pre></details>` : ''}`;
+  return sec('s_info','Project information', info) + sec('s_sys','System configuration', systems) + sec('s_seq','Sequence of operations', sequence, { open:false });
+}
+function bindSetup(root){
+  $$('[data-step]', root).forEach(b => b.onclick = () => updateProject(S.currentId, p => { const path = b.dataset.step; const parts = path.split('.'); const cur = +(p[parts[0]][parts[1]] || 0); p[parts[0]][parts[1]] = Math.max(0, Math.min(10, cur + +b.dataset.d)); return p; }));
+  $$('[data-add]', root).forEach(b => { const kind = b.dataset.add; const inp = $('#add_'+kind, root); const add = () => { const v = inp.value.trim(); if (!v) return; updateProject(S.currentId, p => { p[kind] = [...p[kind], v]; return p; }); }; b.onclick = add; inp.onkeydown = e => { if (e.key === 'Enter') add(); }; });
+  $$('[data-rm]', root).forEach(b => b.onclick = () => updateProject(S.currentId, p => { p[b.dataset.rm] = p[b.dataset.rm].filter((_,i) => i !== +b.dataset.i); return p; }));
+  const sa = $('#seqAdd', root); if (sa) sa.onclick = () => updateProject(S.currentId, p => { p.sequence.push({ id: uid('s'), trigger:'', response:'', equipment:[], floors:'', notes:'' }); return p; });
+  $$('[data-seqdel]', root).forEach(b => b.onclick = () => updateProject(S.currentId, p => { p.sequence.splice(+b.dataset.seqdel, 1); return p; }));
+  // equipment tag list is stored as an array; the text field writes equipmentText → convert
+  $$('[data-eqtext]', root).forEach(el => el.addEventListener('input', () => { const idx = +el.dataset.eqtext; setField(S.currentId, `sequence.${idx}.equipment`, el.value.split(',').map(x => x.trim()).filter(Boolean), { silent:true }); }));
+}
+
+</script>
+<script>
+// ───────────────────────── Equipment ─────────────────────────
+function viewEquip(p){
+  const zones = getZones(p);
+  const rows = p.equipment.map((e,i) => {
+    const flags = [e.hasVFD && '<span class="badge b-info">VFD</span>', e.hasBelt && '<span class="badge b-obs">Belt</span>', e.hasDuctDet && '<span class="badge b-def">Duct det.</span>', e.cfm && `<span class="badge b-note">${esc(e.cfm)} CFM</span>`].filter(Boolean).join(' ');
+    const zone = isZoneEq(e) ? `<span class="badge b-ok">Zone ${esc(zoneInfo(e).zone)}${zoneInfo(e).floor ? ' · ' + esc(zoneInfo(e).floor) : ''}</span>` : '<span class="badge b-note">Building-wide</span>';
+    return `<div class="card" style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+      <div style="min-width:0"><div><span class="tag" style="font-size:15px">${esc(e.tag)}</span> <span class="small muted">${esc(e.type)}</span></div>
+        <div class="small muted">${esc(e.location || '')}${e.room ? ' · ' + esc(e.room) : ''}</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">${zone} ${flags}</div>${e.cmnt ? `<div class="small faint" style="margin-top:4px">${esc(e.cmnt)}</div>` : ''}</div>
+      <div style="display:flex;gap:4px;flex-shrink:0"><button class="btn-sm" data-eqedit="${i}">Edit</button><button class="btn-sm btn-ghost" data-eqdel="${i}" title="Remove">✕</button></div></div>`;
+  }).join('');
+  const bw = p.equipment.filter(e => isFan(e) && !isZoneEq(e)).length, zn = p.equipment.filter(isZoneEq).length, dm = p.equipment.filter(isDamper).length;
+  const body = `<div class="stats"><div class="stat"><b>${p.equipment.length}</b><span>Devices</span></div><div class="stat"><b>${bw}</b><span>Building-wide fans</span></div><div class="stat"><b>${zn}</b><span>Zone equipment</span></div><div class="stat"><b>${dm}</b><span>Dampers</span></div></div>
+    <p class="hint">Building-wide fans (stair, vestibule, tower purge) become columns of the typical-floor matrix. Equipment assigned to a lower-level zone is grouped into the zone tables instead. ${zones.length ? `Zones so far: ${zones.map(z => esc(z.zone)).join(', ')}.` : ''}</p>
+    <button class="btn-primary" id="eqAdd">+ Add equipment</button><div style="margin-top:12px">${rows || '<div class="empty">No equipment yet. Add fans, make-up air units, and dampers, or import the intake JSON.</div>'}</div>`;
+  return sec('e_list', `Equipment (${p.equipment.length})`, body);
+}
+function equipForm(p, idx){
+  const e = idx != null ? p.equipment[idx] : { tag:'', type:FAN_TYPES[0], location:'', zone:'', room:'', floor:'', cfm:'', cmnt:'', hasVFD:false, hasBelt:false, hasDuctDet:false };
+  const zones = getZones(p);
+  modal(`<h3>${idx != null ? 'Edit ' + esc(e.tag) : 'Add equipment'}</h3>
+    <div class="row2"><div class="field"><label class="lbl" for="q_tag">Tag</label><input id="q_tag" value="${esc(e.tag)}" placeholder="SPF-1"></div><div class="field"><label class="lbl" for="q_type">Type</label><select id="q_type">${FAN_TYPES.map(t => `<option ${t===e.type?'selected':''}>${t}</option>`).join('')}</select></div></div>
+    <div class="row2"><div class="field"><label class="lbl" for="q_loc">Location / serves</label><input id="q_loc" value="${esc(e.location)}" placeholder="Roof mech. room / Stair 2A"></div><div class="field"><label class="lbl" for="q_cfm">Design CFM</label><input id="q_cfm" value="${esc(e.cfm)}" placeholder="optional"></div></div>
+    <div class="lbl" style="margin-top:4px">Lower-level zone (leave blank for building-wide equipment)</div>
+    <div class="row3"><div class="field"><label class="lbl" for="q_zone">Zone</label><input id="q_zone" value="${esc(e.zone)}" placeholder="11" list="zl"><datalist id="zl">${zones.map(z => `<option value="${esc(z.zone)}">`).join('')}</datalist></div><div class="field"><label class="lbl" for="q_room">Room / area</label><input id="q_room" value="${esc(e.room)}" placeholder="Ballroom"></div><div class="field"><label class="lbl" for="q_floor">Floor</label><input id="q_floor" value="${esc(e.floor)}" placeholder="2nd Floor"></div></div>
+    <div id="q_flags">${isDamper(e) ? '' : `<div class="tog-row"><span>VFD</span>${switchEl(e.hasVFD, 'id="q_vfd"')}</div><div class="tog-row"><span>Belt drive</span>${switchEl(e.hasBelt, 'id="q_belt"')}</div><div class="tog-row"><span>Duct detector present</span>${switchEl(e.hasDuctDet, 'id="q_dd"')}</div>`}</div>
+    <div class="field" style="margin-top:8px"><label class="lbl" for="q_cmnt">Comment / design notes</label><textarea id="q_cmnt">${esc(e.cmnt||'')}</textarea></div>
+    <div class="acts"><button id="mCancel">Cancel</button><button id="mOk" class="btn-primary">${idx != null ? 'Save' : 'Add'}</button></div>`, () => {
+    $('#mCancel').onclick = closeModal;
+    $('#q_type').onchange = ev => { $('#q_flags').innerHTML = isDamper({ type: ev.target.value }) ? '' : `<div class="tog-row"><span>VFD</span>${switchEl(false,'id="q_vfd"')}</div><div class="tog-row"><span>Belt drive</span>${switchEl(false,'id="q_belt"')}</div><div class="tog-row"><span>Duct detector present</span>${switchEl(false,'id="q_dd"')}</div>`; };
+    $('#mOk').onclick = () => {
+      const tag = $('#q_tag').value.trim(); if (!tag) { toast('Enter a tag'); return; }
+      const dup = p.equipment.findIndex((x,i) => x.tag === tag && i !== idx); if (dup >= 0) { toast(`Tag ${tag} already exists`); return; }
+      const g = id => { const el = $('#'+id); return el ? el.checked : false; };
+      const ne = { tag, type: $('#q_type').value, location: $('#q_loc').value.trim(), cfm: $('#q_cfm').value.trim(), zone: $('#q_zone').value.trim(), room: $('#q_room').value.trim(), floor: $('#q_floor').value.trim(), cmnt: $('#q_cmnt').value.trim(), hasVFD: g('q_vfd'), hasBelt: g('q_belt'), hasDuctDet: g('q_dd') };
+      updateProject(S.currentId, pr => {
+        if (idx != null) {
+          const old = pr.equipment[idx].tag;
+          pr.equipment[idx] = { ...pr.equipment[idx], ...ne };
+          if (old !== tag) { // carry results with the renamed tag
+            const ren = (map, from, to) => { for (const k of Object.keys(map)) if (k.startsWith(from)) { map[to + k.slice(from.length)] = map[k]; delete map[k]; } };
+            ren(pr.seqResults, old + '_', tag + '_');
+            for (const k of Object.keys(pr.matrixResults)) if (k.endsWith('_fan_' + old)) { pr.matrixResults[k.slice(0, -old.length) + tag] = pr.matrixResults[k]; delete pr.matrixResults[k]; }
+          }
+        } else pr.equipment.push(ne);
+        return pr;
+      });
+      closeModal(); toast((idx != null ? 'Updated ' : 'Added ') + tag);
+    };
+  });
+}
+function bindEquip(root, p){
+  $('#eqAdd', root).onclick = () => equipForm(p, null);
+  $$('[data-eqedit]', root).forEach(b => b.onclick = () => equipForm(p, +b.dataset.eqedit));
+  $$('[data-eqdel]', root).forEach(b => b.onclick = () => { const e = p.equipment[+b.dataset.eqdel]; confirmBox('Remove ' + e.tag + '?', 'Its sequence-test results stay in the record under the tag and reappear if the tag is added back.', 'Remove', () => updateProject(S.currentId, pr => { pr.equipment.splice(+b.dataset.eqdel, 1); return pr; }), true); });
+}
+
+// ───────────────────────── Sequence tests ─────────────────────────
+function rr(name, ev, exp, val, pfAttr){ return `<div class="rr"><div class="rr-info"><div class="rr-name">${name}</div>${ev ? `<div class="rr-ev">${ev}</div>` : ''}${exp ? `<div class="rr-exp">${exp}</div>` : ''}</div>${pfn(val, pfAttr)}</div>`; }
+function viewSeq(p){
+  let pass = 0, fail = 0;
+  p.equipment.forEach(e => getSeqTests(e).forEach((_,ti) => { const v = seqGet(p,e,ti); if (v === 'pass') pass++; if (v === 'fail') fail++; }));
+  const eqCards = p.equipment.length ? p.equipment.map(e => `<div class="card"><div style="display:flex;gap:8px;align-items:baseline;margin-bottom:4px"><span class="tag" style="font-size:14px">${esc(e.tag)}</span><span class="small faint">${esc(e.type)}${e.location ? ' · ' + esc(e.location) : ''}</span></div>${getSeqTests(e).map((t,ti) => rr(esc(t.action), esc(t.event), esc(t.exp), seqGet(p,e,ti), `data-pf="seqResults|${esc(seqKey(e,ti))}"`)).join('')}</div>`).join('') : '<div class="empty">Add equipment first.</div>';
+  const stats = (pass+fail) ? `<div class="stats"><div class="stat pass"><b>${pass}</b><span>Pass</span></div><div class="stat ${fail?'fail':'pass'}"><b>${fail}</b><span>Fail</span></div></div>` : '';
+  const cats = {}; VISUAL_ITEMS.forEach(v => (cats[v.cat] = cats[v.cat] || []).push(v));
+  return sec('q_eq', 'Equipment panel tests (Appendix A-1)', stats + eqCards)
+    + sec('q_fault', 'Fault conditions', FAULT_TESTS.map(f => rr(esc(f.lbl), f.id === 'f3' && !p.systems.weekly ? 'N/A, not required per AHJ' : esc(f.ev), '', p.seqResults[f.id]||'', `data-pf="seqResults|${f.id}"`)).join(''), { open:false })
+    + sec('q_ep', 'Emergency power', EMERG_TESTS.map(f => rr(esc(f.lbl), esc(f.ev), '', p.seqResults[f.id]||'', `data-pf="seqResults|${f.id}"`)).join(''), { open:false })
+    + sec('q_init', 'Initiating devices', INIT_TESTS.map(f => rr(esc(f.lbl), f.id === 'i2' && !p.systems.wflow ? 'Not tested / deferred to annual inspections' : esc(f.ev), '', p.seqResults[f.id]||'', `data-pf="seqResults|${f.id}"`)).join(''), { open:false })
+    + sec('q_vis', 'Visual inspection (Table 1)', Object.entries(cats).map(([c, items]) => `<div class="lbl" style="margin-top:10px">${esc(c)}</div>${items.map(v => rr(esc(v.lbl), '', '', p.seqResults[v.id]||'', `data-pf="seqResults|${v.id}"`)).join('')}`).join(''), { open:false });
+}
+
+// ───────────────────────── Floor matrix ─────────────────────────
+function matrixTable(p, floors, cols, title){
+  const mr = p.matrixResults;
+  return `<div class="tbl-wrap"><table class="mx"><thead><tr><th>${esc(title)}</th>${cols.map(c => `<th title="${esc(c.group)}">${esc(c.label)}</th>`).join('')}</tr></thead><tbody>${floors.map(fl => `<tr><td>${esc(fl)}</td>${cols.map(c => { const k = `${fl}_${c.key}`; const v = mr[k] || ''; return `<td class="${v==='pass'?'cp':v==='fail'?'cf':v==='na'?'cn':''}"><div class="mc"><button data-pf="matrixResults|${esc(k)}" data-v="pass" class="${v==='pass'?'p':''}">P</button><button data-pf="matrixResults|${esc(k)}" data-v="fail" class="${v==='fail'?'f':''}">F</button><button data-pf="matrixResults|${esc(k)}" data-v="na" class="${v==='na'?'n':''}">N</button></div></td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+function viewMatrix(p){
+  const floors = getFloors(p); const cols = getMatrixCols(p);
+  if (!floors.length) return sec('m_a', 'Floor sequence matrix', '<div class="empty">Set the highest floor in Setup to build the matrix.</div>');
+  if (!cols.length) return sec('m_a', 'Floor sequence matrix', '<div class="empty">Add building-wide equipment or enable corridor / elevator systems in Setup.</div>');
+  const typ = typicalFloors(p), low = lowerFloors(p);
+  const mr = p.matrixResults; const passes = Object.values(mr).filter(v => v === 'pass').length, fails = Object.values(mr).filter(v => v === 'fail').length;
+  const total = typ.length * cols.length; const entered = typ.reduce((n,f) => n + cols.filter(c => mr[`${f}_${c.key}`]).length, 0);
+  const stats = `<div class="stats"><div class="stat pass"><b>${passes}</b><span>Pass</span></div><div class="stat ${fails?'fail':'pass'}"><b>${fails}</b><span>Fail</span></div><div class="stat"><b>${entered}/${total}</b><span>Typical cells</span></div></div>`;
+  const tlo = typicalLow(p);
+  const a = `${stats}<p class="hint">A-2(a): typical floors, Levels ${tlo}–${esc(p.info.floorHigh)}, building-wide smoke control only. Columns: ${cols.map(c => esc(c.label)).join(' · ')}. Tap P / F / N; tap again to clear.</p>${typ.length ? matrixTable(p, typ, cols, 'Level') : '<div class="empty">No typical floors: first typical floor is above the highest floor.</div>'}`;
+  const bRows = low.length ? `<p class="hint">Building-wide systems on the lower levels (corridor dampers, stair fans, elevator recall). Zone-specific purge and isolation for these floors is recorded under Lower-level zones.</p>${matrixTable(p, low, cols, 'Level')}` : '<div class="empty">No lower-level floors in range.</div>';
+  return sec('m_a', 'A-2(a) Typical floor sequence matrix', a) + sec('m_b', `Lower-level floors, building-wide columns (${low.length})`, bRows, { open:false });
+}
+
+// ───────────────────────── Lower-level zones ─────────────────────────
+function viewZones(p){
+  const zones = getZones(p);
+  if (!zones.length) return sec('z_a', 'A-2(b) Lower-level zone matrix', `<div class="empty">No zone equipment yet. In Equipment, give each lower-level amenity fan a Zone, Room and Floor (for example Zone 11, Ballroom, 2nd Floor). Each zone then gets a row here: fans start (purge), dampers operate, adjacent zones isolate.</div>`);
+  const byFloor = {}; zones.forEach(z => (byFloor[z.floor || 'Lower level'] = byFloor[z.floor || 'Lower level'] || []).push(z));
+  const zr = p.zoneResults;
+  const cell = (z, k, label) => `<div class="c"><span>${label}</span>${pfn(zr[`${z.zone}_${k}`]||'', `data-pf="zoneResults|${esc(z.zone)}_${k}"`)}</div>`;
+  const body = Object.entries(byFloor).map(([fl, zs]) => `<div class="lbl" style="margin:12px 0 6px">${esc(fl)}</div>${zs.map(z => { const roll = zoneRollup(p, z); return `<div class="zn"><div class="zn-h"><span class="z">Zone ${esc(z.zone)}</span><span class="muted">${esc(z.room || '')}</span><span class="small faint mono">${z.tags.map(esc).join(', ')}</span><span style="margin-left:auto" class="res ${roll || 'none'}">${roll ? (roll === 'partial' ? 'PARTIAL' : roll.toUpperCase()) : 'Equipment A-1: none'}</span></div>
+      <div class="zn-cells">${cell(z,'fans','Fans start (purge)')}${cell(z,'dampers','Dampers operate')}${cell(z,'isolate','Adjacent zones isolate')}</div>
+      <div class="row2" style="margin-top:8px"><div><label class="lbl">Zone note</label><input data-k="zr.${esc(z.zone)}.note" data-path="zoneResults.${esc(z.zone)}_note" value="${esc(zr[z.zone+'_note']||'')}" placeholder="Observed behaviour, make-up air, etc."></div><div><label class="lbl">Zone sequence (override)</label><input data-k="zr.${esc(z.zone)}.seq" data-path="zoneResults.${esc(z.zone)}_seq" value="${esc(zr[z.zone+'_seq']||'')}" placeholder="Default: zone purges; adjacent zones isolate"></div></div></div>`; }).join('')}`).join('');
+  return sec('z_a', `A-2(b) Lower-level zone matrix (${zones.length} zones)`, `<p class="hint">On alarm in a zone, that zone is placed in purge and adjacent zones isolate. The Result column of the report rolls up from each zone's own equipment tests in Sequence tests; the three columns here print directly.</p>${body}`);
+}
+
+</script>
+<script>
+// ───────────────────────── Pressure & door force ─────────────────────────
+function pInput(prefix, fl, field, val, step){ const bad = pressFlag(field, val); return `<input type="number" step="${step}" placeholder="—" data-k="fl.${esc(prefix)}.${esc(fl)}.${field}" data-press="${esc(prefix)}|${esc(fl)}|${field}" value="${esc(val)}" class="${bad?'bad':''}" title="${bad ? (field==='dp' ? 'Below 0.05 in. w.g. minimum' : 'Above 30 lbf maximum') : ''}">`; }
+function clBtn(prefix, fl, val){ return `<button class="cl-btn ${val||''}" data-cl="${esc(prefix)}|${esc(fl)}">${val === 'pass' ? 'LATCH OK' : val === 'fail' ? 'NO LATCH' : '— latch —'}</button>`; }
+const BLK_HINT = { stair:'Stair to corridor, door force at the stair door', stairv:'Stair to vestibule, door force at the stair door', vest:'Vestibule to corridor, door force at the vestibule door', elev:'Lobby ΔP and door forces', corr:'Corridor to unit, sample basis' };
+function blkHint(blk){ return BLK_HINT[blk.kind] || ''; }
+function pressByShaft(p, floors, blk){
+  const cols = blk.cl ? '52px 1fr 1fr 1fr 92px' : '52px 1fr 1fr 1fr';
+  const heads = blk.cl ? ['Floor','ΔP in. w.g.','Break lb','Swing lb','Close / latch'] : ['Floor','ΔP in. w.g.','Break lb','Swing lb'];
+  return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="tag" style="font-size:14px">${esc(blk.label)}</span><span class="small faint">${blkHint(blk)}</span></div>
+    <div class="pgrid${blk.cl?"":" noc"}" style="grid-template-columns:${cols}">${heads.map(h => `<div class="ph">${h}</div>`).join('')}</div>
+    ${floors.map(fl => { const d = p.floors[`${blk.prefix}_${fl}`] || {}; return `<div class="pgrid${blk.cl?"":" noc"}" style="grid-template-columns:${cols}"><div class="pf">${esc(fl)}</div>${pInput(blk.prefix, fl, 'dp', d.dp ?? '', '0.001')}${pInput(blk.prefix, fl, 'brk', d.brk ?? '', '0.5')}${pInput(blk.prefix, fl, 'swg', d.swg ?? '', '0.5')}${blk.cl ? clBtn(blk.prefix, fl, d.cl || '') : ''}</div>`; }).join('')}</div>`;
+}
+function pressByFloor(p, fl, blocks){
+  return `<div class="card"><div class="tag" style="font-size:14px;margin-bottom:8px">Level ${esc(fl)}</div>
+    <div class="prow"><div class="ph">Shaft / door</div><div class="pin"><div class="ph">ΔP in. w.g.</div><div class="ph">Break lb</div><div class="ph">Swing lb</div><div class="ph">Close / latch</div></div></div>
+    ${blocks.map(blk => { const d = p.floors[`${blk.prefix}_${fl}`] || {}; return `<div class="prow"><div class="pf" title="${esc(blk.label)}">${esc(blk.short || blk.label)}</div><div class="pin${blk.cl?'':' noc'}">${pInput(blk.prefix, fl, 'dp', d.dp ?? '', '0.001')}${pInput(blk.prefix, fl, 'brk', d.brk ?? '', '0.5')}${pInput(blk.prefix, fl, 'swg', d.swg ?? '', '0.5')}${blk.cl ? clBtn(blk.prefix, fl, d.cl || '') : ''}</div></div>`; }).join('')}</div>`;
+}
+function viewPress(p){
+  const floors = getFloors(p); const blocks = pressBlocks(p);
+  if (!floors.length) return sec('p_a', 'Pressure differential & door force (A-2b)', '<div class="empty">Set the highest floor in Setup first.</div>');
+  if (!blocks.length) return sec('p_a', 'Pressure differential & door force (A-2b)', '<div class="empty">Enable stair, elevator or corridor systems in Setup and name the stairwells / hoistways.</div>');
+  let low = 0, high = 0, n = 0; for (const [k, d] of Object.entries(p.floors)) { if (d.dp !== '' && d.dp != null) { n++; if (+d.dp < DP_MIN) low++; } if (pressFlag('brk', d.brk) || pressFlag('swg', d.swg)) high++; }
+  const stats = `<div class="stats"><div class="stat"><b>${n}</b><span>ΔP readings</span></div><div class="stat ${low?'fail':'pass'}"><b>${low}</b><span>Below 0.05</span></div><div class="stat ${high?'fail':'pass'}"><b>${high}</b><span>Force over 30 lbf</span></div></div>`;
+  const mode = `<div class="subtabs"><button data-pm="shaft" class="${S.pressMode==='shaft'?'on':''}">By shaft (all levels)</button><button data-pm="floor" class="${S.pressMode==='floor'?'on':''}">By floor (all shafts)</button></div>`;
+  let body;
+  if (S.pressMode === 'shaft') {
+    const sub = Math.min(S.pressSub, blocks.length - 1);
+    body = `<div class="subtabs">${blocks.map((b,i) => `<button data-ps="${i}" class="${i===sub?'on':''}">${esc(b.label)}</button>`).join('')}</div>${pressByShaft(p, floors, blocks[sub])}`;
+  } else {
+    const sub = Math.min(S.pressSub, floors.length - 1);
+    body = `<div class="field"><label class="lbl" for="pfl">Level</label><select id="pfl" style="max-width:220px">${floors.map((f,i) => `<option value="${i}" ${i===sub?'selected':''}>${esc(f)}</option>`).join('')}</select></div>${pressByFloor(p, floors[sub], blocks)}
+      <div style="display:flex;gap:6px;margin-top:6px"><button data-pnav="-1" ${sub===0?'disabled':''}>↑ ${esc(floors[sub-1] ?? '')}</button><button data-pnav="1" ${sub===floors.length-1?'disabled':''}>↓ ${esc(floors[sub+1] ?? '')}</button></div>`;
+  }
+  return sec('p_a', 'Pressure differential & door force (A-2b)', `${stats}<p class="hint">Minimum ΔP 0.05 in. w.g.; maximum door force 30 lbf (NFPA 92 §6.4.2). Out-of-range values are outlined in red. Both entry modes write the same record.${p.systems.vest ? ' With vestibule pressurization enabled, each stair is measured at both doors: the stair door and the vestibule door.' : ''}</p>${mode}${body}`);
+}
+function bindPress(root){
+  $$('[data-pm]', root).forEach(b => b.onclick = () => { S.pressMode = b.dataset.pm; S.pressSub = 0; persist(); render(); });
+  $$('[data-ps]', root).forEach(b => b.onclick = () => { S.pressSub = +b.dataset.ps; render(); });
+  const sel = $('#pfl', root); if (sel) sel.onchange = e => { S.pressSub = +e.target.value; render(); };
+  $$('[data-pnav]', root).forEach(b => b.onclick = () => { S.pressSub += +b.dataset.pnav; render(); });
+  $$('[data-press]', root).forEach(inp => inp.addEventListener('input', () => { const [prefix, fl, field] = inp.dataset.press.split('|'); const v = inp.value; inp.classList.toggle('bad', pressFlag(field, v)); updateProject(S.currentId, p => { const k = `${prefix}_${fl}`; const d = { dp:'', brk:'', swg:'', cl:'', ...(p.floors[k]||{}) }; d[field] = v; if (!d.dp && !d.brk && !d.swg && !d.cl) delete p.floors[k]; else p.floors[k] = d; return p; }, { silent:true }); renderTopbar(); }));
+  $$('[data-cl]', root).forEach(b => b.onclick = () => { const [prefix, fl] = b.dataset.cl.split('|'); updateProject(S.currentId, p => { const k = `${prefix}_${fl}`; const d = { dp:'', brk:'', swg:'', cl:'', ...(p.floors[k]||{}) }; d.cl = { '':'pass', pass:'fail', fail:'' }[d.cl || '']; if (!d.dp && !d.brk && !d.swg && !d.cl) delete p.floors[k]; else p.floors[k] = d; return p; }, { keepFocus:true }); });
+}
+
+// ───────────────────────── Deficiencies ─────────────────────────
+function viewDefic(p){
+  const c = { Deficiency:0, Observation:0, Note:0 }; p.deficiencies.forEach(d => c[d.sev] = (c[d.sev]||0) + 1);
+  const cls = { Deficiency:'', Observation:'obs', Note:'note' }, bcls = { Deficiency:'b-def', Observation:'b-obs', Note:'b-note' };
+  const items = p.deficiencies.map(d => `<div class="def ${cls[d.sev]||''}"><div class="def-h"><span class="badge ${bcls[d.sev]||'b-note'}">${esc(d.sev)}</span><span class="loc">${esc(d.loc||'')}</span><span style="margin-left:auto;display:flex;gap:4px"><button class="btn-sm" data-dedit="${d.id}">Edit</button><button class="btn-sm btn-ghost" data-ddel="${d.id}">✕</button></span></div>
+    <div>${esc(d.desc)}</div>${d.action ? `<div class="def-act">→ ${esc(d.action)}</div>` : ''}
+    <div class="photos">${(d.photos||[]).map(pid => `<img data-photo="${pid}" data-def="${d.id}" alt="Deficiency photo" src="${S.photos[pid] ? S.photos[pid].dataUrl : ''}" title="Tap to view">`).join('')}<label class="add" title="Add photo">＋ photo<input type="file" accept="image/*" hidden data-addphoto="${d.id}"></label></div>
+    <div class="small faint" style="margin-top:4px">${d.by ? esc(d.by) + ' · ' : ''}${esc(fmtDate(d.ts))}</div></div>`).join('');
+  const body = `<div class="stats"><div class="stat ${c.Deficiency?'fail':'pass'}"><b>${c.Deficiency}</b><span>Deficiencies</span></div><div class="stat ${c.Observation?'warn':''}"><b>${c.Observation}</b><span>Observations</span></div><div class="stat"><b>${c.Note}</b><span>Notes</span></div></div>
+    <button class="btn-primary" id="defAdd">+ Add item</button><div style="margin-top:12px">${items || '<div class="empty">No deficiencies recorded.</div>'}</div>`;
+  const notes = `<textarea data-k="notes" data-path="notes" style="min-height:120px" placeholder="General observations, site conditions, coordination notes, outstanding items">${esc(p.notes||'')}</textarea>`;
+  return sec('d_a', 'Deficiencies & observations (Appendix C)', body) + sec('d_n', 'General notes', notes, { open:false });
+}
+function deficForm(p, id){
+  const d = id ? p.deficiencies.find(x => x.id === id) : { loc:'', sev:'Deficiency', desc:'', action:'' };
+  modal(`<h3>${id ? 'Edit item' : 'Add item'}</h3>
+    <div class="row2"><div class="field"><label class="lbl" for="d_loc">Location</label><input id="d_loc" value="${esc(d.loc)}" placeholder="Stair 2A, Level 15"></div><div class="field"><label class="lbl" for="d_sev">Severity</label><select id="d_sev">${['Deficiency','Observation','Note'].map(s => `<option ${s===d.sev?'selected':''}>${s}</option>`).join('')}</select></div></div>
+    <div class="field"><label class="lbl" for="d_desc">Observed condition</label><textarea id="d_desc" placeholder="State what was observed, by location">${esc(d.desc)}</textarea></div>
+    <div class="field"><label class="lbl" for="d_act">Required corrective action</label><textarea id="d_act" style="min-height:48px">${esc(d.action)}</textarea></div>
+    <div class="acts"><button id="mCancel">Cancel</button><button id="mOk" class="btn-primary">Save</button></div>`, () => {
+    $('#mCancel').onclick = closeModal; $('#d_desc').focus();
+    $('#mOk').onclick = () => { const desc = $('#d_desc').value.trim(); if (!desc) { toast('Describe the condition'); return; }
+      const v = { loc: $('#d_loc').value.trim(), sev: $('#d_sev').value, desc, action: $('#d_act').value.trim() };
+      updateProject(S.currentId, pr => { if (id) { const x = pr.deficiencies.find(y => y.id === id); Object.assign(x, v); } else pr.deficiencies.push({ id: uid('d'), ...v, photos: [], ts: new Date().toISOString(), by: S.me || '' }); return pr; });
+      closeModal(); };
+  });
+}
+function bindDefic(root, p){
+  $('#defAdd', root).onclick = () => deficForm(p, null);
+  $$('[data-dedit]', root).forEach(b => b.onclick = () => deficForm(p, b.dataset.dedit));
+  $$('[data-ddel]', root).forEach(b => b.onclick = () => confirmBox('Remove this item?', 'It is removed from the record for everyone.', 'Remove', () => updateProject(S.currentId, pr => { pr.deficiencies = pr.deficiencies.filter(x => x.id !== b.dataset.ddel); return pr; }), true));
+  $$('[data-addphoto]', root).forEach(inp => inp.onchange = async e => { const f = e.target.files[0]; if (!f) return; toast('Adding photo…'); try { await addPhoto(S.currentId, inp.dataset.addphoto, f); toast('Photo added'); } catch (err) { toast('Could not read that image'); } });
+  $$('[data-photo]', root).forEach(img => {
+    if (!img.getAttribute('src')) fetchPhoto(S.currentId, img.dataset.photo).then(ph => { if (ph) img.src = ph.dataUrl; else img.alt = 'Photo unavailable offline'; });
+    img.onclick = () => { const ph = S.photos[img.dataset.photo]; if (!ph) return; const lb = document.createElement('div'); lb.className = 'lightbox'; lb.innerHTML = `<div style="text-align:center"><img src="${ph.dataUrl}" alt=""><div style="margin-top:8px;display:flex;gap:8px;justify-content:center"><input id="lbCap" value="${esc(ph.caption||'')}" placeholder="Caption" style="max-width:320px"><button id="lbSave">Save caption</button><button class="btn-danger" id="lbDel">Remove photo</button></div></div>`; document.body.appendChild(lb);
+      lb.onclick = ev => { if (ev.target === lb) lb.remove(); };
+      lb.querySelector('#lbSave').onclick = async () => { ph.caption = lb.querySelector('#lbCap').value; ph.pending = true; await idbPut(img.dataset.photo, ph); scheduleSync(); lb.remove(); toast('Caption saved'); };
+      lb.querySelector('#lbDel').onclick = () => { lb.remove(); confirmBox('Remove photo?', 'The photo is removed from this deficiency.', 'Remove', () => removePhoto(S.currentId, img.dataset.def, img.dataset.photo), true); }; };
+  });
+}
+
+// ───────────────────────── Open items (_meta.conflicts) ─────────────────────────
+function viewItems(p){
+  const items = p._meta.conflicts || [];
+  const open = items.filter(c => c.status !== 'resolved' && c.status !== 'na');
+  const pcls = { Critical:'b-crit', High:'b-def', Medium:'b-obs', Low:'b-note' };
+  const groups = {}; items.forEach(c => (groups[c.category || 'General'] = groups[c.category || 'General'] || []).push(c));
+  const body = `<div class="stats"><div class="stat ${open.length?'warn':'pass'}"><b>${open.length}</b><span>Open</span></div><div class="stat pass"><b>${items.filter(c => c.status === 'resolved').length}</b><span>Resolved</span></div><div class="stat"><b>${items.length}</b><span>Total</span></div></div>
+    <p class="hint">Items carried in from the intake (conflicts between drawings, panel and narrative; things to field-verify). Mark each one as you confirm it in the field; the Open Items log picks up the status and notes.</p>
+    <button class="btn-primary" id="oiAdd">+ Add item</button>
+    ${Object.entries(groups).sort().map(([cat, cs]) => `<div class="lbl" style="margin:14px 0 6px">${esc(cat)}</div>${cs.map(c => { const idx = items.indexOf(c); return `<div class="oi ${c.status === 'resolved' || c.status === 'na' ? 'resolved' : ''}"><div class="oi-h"><b>${esc(c.item)}</b><span class="badge ${pcls[c.priority]||'b-note'}">${esc(c.priority||'')}</span><button class="btn-sm btn-ghost" data-oidel="${idx}" title="Remove">✕</button></div>
+      ${c.known ? `<p><span class="faint">Known:</span> ${esc(c.known)}</p>` : ''}${c.action ? `<p><span class="faint">Action:</span> ${esc(c.action)}</p>` : ''}
+      <div class="st"><button data-oist="${idx}|open" class="btn-sm ${!c.status || c.status==='open' ? 'on' : ''}">Open</button><button data-oist="${idx}|resolved" class="btn-sm ${c.status==='resolved'?'on':''}">Resolved</button><button data-oist="${idx}|na" class="btn-sm ${c.status==='na'?'on':''}">N/A</button><span class="small faint">${c.resolvedBy ? esc(c.resolvedBy) + ' · ' + esc(fmtDate(c.resolvedAt)) : ''}</span></div>
+      <input data-k="oi.${c.id}" data-path="_meta.conflicts.${idx}.resolution" value="${esc(c.resolution||'')}" placeholder="Field finding / resolution note" style="margin-top:6px"></div>`; }).join('')}`).join('') || '<div class="empty">No open items on this record.</div>'}`;
+  return sec('o_a', `Open items & discrepancies (${open.length} open)`, body);
+}
+function oiForm(){
+  modal(`<h3>Add open item</h3><div class="row2"><div class="field"><label class="lbl" for="o_cat">Category</label><input id="o_cat" placeholder="e.g. C.  Lower-Level Zone & Tag Discrepancies"></div><div class="field"><label class="lbl" for="o_pri">Priority</label><select id="o_pri"><option>Critical</option><option>High</option><option selected>Medium</option><option>Low</option></select></div></div>
+    <div class="field"><label class="lbl" for="o_item">Item</label><input id="o_item"></div><div class="field"><label class="lbl" for="o_known">What is known</label><textarea id="o_known"></textarea></div><div class="field"><label class="lbl" for="o_act">Action to resolve</label><textarea id="o_act" style="min-height:48px"></textarea></div>
+    <div class="acts"><button id="mCancel">Cancel</button><button id="mOk" class="btn-primary">Add</button></div>`, () => { $('#mCancel').onclick = closeModal; $('#mOk').onclick = () => { const item = $('#o_item').value.trim(); if (!item) return; updateProject(S.currentId, p => { p._meta.conflicts.push({ id: uid('c'), category: $('#o_cat').value.trim() || 'General', item, known: $('#o_known').value.trim(), action: $('#o_act').value.trim(), priority: $('#o_pri').value, status:'open', resolution:'' }); return p; }); closeModal(); }; });
+}
+function bindItems(root){
+  $('#oiAdd', root).onclick = oiForm;
+  $$('[data-oist]', root).forEach(b => b.onclick = () => { const [idx, st] = b.dataset.oist.split('|'); updateProject(S.currentId, p => { const c = p._meta.conflicts[+idx]; c.status = st; if (st !== 'open') { c.resolvedBy = S.me || ''; c.resolvedAt = todayISO(); } else { c.resolvedBy = ''; c.resolvedAt = ''; } return p; }, { keepFocus:true }); });
+  $$('[data-oidel]', root).forEach(b => b.onclick = () => confirmBox('Remove this open item?', '', 'Remove', () => updateProject(S.currentId, p => { p._meta.conflicts.splice(+b.dataset.oidel, 1); return p; }), true));
+}
+
+</script>
+<script>
+// ───────────────────────── Reports & data ─────────────────────────
+function viewReports(p){
+  const res = hasResults(p); const pr = progress(p);
+  const open = (p._meta.conflicts||[]).filter(c => c.status !== 'resolved' && c.status !== 'na').length;
+  const where = ghConfigured() ? `Read the record from the SC Inspect data repository on GitHub: ${S.cfg.owner}/${S.cfg.repo}, file projects/${p.id}.json (photos under photos/${p.id}/). Do not ask for a pasted export.` : `The record is projects/${p.id}.json in the SC Inspect data repository on GitHub. Do not ask for a pasted export.`;
+  const docs = [
+    { t:'Smoke Control Inspection Test Plan / Basis of Design', skill:'sc-inspection-test-plan', when:'Pre-test. Uses the config, equipment, sequence and zones; result fields print blank.', prompt:`Build the Smoke Control Inspection Test Plan and Basis of Design Report for "${p.name}" using the eb-smoke-control-inspection plugin (sc-inspection-test-plan skill). ${where}`, ok:true },
+    { t:'Pretest checklists (fire alarm, fans & dampers, building & egress)', skill:'sc-field-checklists', when:'Sent to the building and vendors ahead of the inspection.', prompt:`Generate the three pretest checklists for "${p.name}" using the eb-smoke-control-inspection plugin (sc-field-checklists skill). ${where}`, ok:true },
+    { t:'Open Items, Conflicts & Discrepancies log', skill:'sc-discrepancy-appendix', when:`${(p._meta.conflicts||[]).length} items on this record, ${open} still open. Status and field notes print from the app.`, prompt:`Generate the Open Items / Conflicts / Discrepancies log for "${p.name}" using the eb-smoke-control-inspection plugin (sc-discrepancy-appendix skill). ${where}`, ok:(p._meta.conflicts||[]).length > 0 },
+    { t:'Smoke Control Inspection Test Results Report', skill:'sc-inspection-results', when: res ? `${pr.done} of ${pr.total} results entered${pr.fails ? `, ${pr.fails} fail` : ''}, ${p.deficiencies.length} deficiencies. Photos attached to deficiencies are included.` : 'No results entered yet; this becomes available once testing starts.', prompt:`The inspection of "${p.name}" is complete. Build the Smoke Control Inspection Test Results Report with all results and deficiencies using the eb-smoke-control-inspection plugin (sc-inspection-results skill). ${where} Include the deficiency photos from photos/${p.id}/ in Appendix C.`, ok:res },
+  ];
+  const cards = docs.map((d,i) => `<div class="card"><h4>${esc(d.t)}</h4><p>${esc(d.when)}</p><pre class="prompt" id="pr${i}">${esc(d.prompt)}</pre><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn-sm ${d.ok?'btn-primary':''}" data-copy="pr${i}">Copy prompt</button><span class="small faint mono">${d.skill}</span></div></div>`).join('');
+  const how = `<p class="hint">The Word documents are produced by the plugin's own engine (the exact skill, letterhead and tables), which runs in a Claude session, not in this page. Copy a prompt, open Claude with the EB Smoke Control Inspection plugin enabled, and paste it. The skill reads this building straight from the team repository on GitHub, so there is nothing to export or paste, and the .docx comes back in that chat. Make sure this device shows "Synced" first.</p><div class="rep">${cards}</div>`;
+  const data = `<div class="kv"><dt>Record id</dt><dd class="mono">${esc(p.id)} <button class="btn-sm" data-copytext="${esc(p.id)}">Copy</button></dd><dt>Schema</dt><dd>v${p.schemaVersion||1}</dd><dt>Created</dt><dd>${esc(fmtDate(p.created))}</dd><dt>Updated</dt><dd>${esc(new Date(p.updated).toLocaleString())}</dd><dt>Local copy</dt><dd>${STORAGE_OK ? 'Kept in this browser (survives signal loss and reloads)' : '<span class="flag">Not available in this browser</span>'}</dd><dt>Sync</dt><dd>${S.dirty.has(p.id) ? '<span class="flag">Edits pending upload</span>' : (ghConfigured() ? `Synced with ${esc(S.cfg.owner)}/${esc(S.cfg.repo)}` : 'This device only')}</dd></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px"><button id="expJson">Export JSON</button><button id="expJsonP">Export JSON with photos</button><button id="impHere">Import JSON as new building</button><button id="dupBld">Duplicate building</button></div>
+    <p class="hint" style="margin-top:10px">Exports are byte-compatible with the plugin skills and with the old Replit app. Importing never overwrites: it always creates a new building.</p>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button id="syncNowBtn">Sync now</button><button id="openSettings2">Settings</button></div>`;
+  const log = (p._conflicts||[]).length ? `<p class="hint">Edits by two people to the same field at the same time. The kept value is on the record; the other is listed here so nothing is lost.</p>${p._conflicts.slice().reverse().map(c => `<div class="card small"><div class="mono">${esc(c.path)}</div><div><span class="faint">kept:</span> ${esc(JSON.stringify(c.kept))} · <span class="faint">other:</span> ${esc(JSON.stringify(c.dropped))}</div><div class="faint">${esc(c.by||'')} · ${esc(new Date(c.at).toLocaleString())}</div></div>`).join('')}` : '<div class="empty">No overlapping edits recorded.</div>';
+  return sec('r_docs', 'Generate documents', how) + sec('r_data', 'Record & data transfer', data, { open:false }) + sec('r_log', `Sync log (${(p._conflicts||[]).length})`, log, { open:false });
+}
+function bindReports(root, p){
+  $$('[data-copy]', root).forEach(b => b.onclick = () => navigator.clipboard.writeText($('#'+b.dataset.copy, root).textContent).then(() => toast('Prompt copied. Paste it into a Claude chat with the plugin enabled.')).catch(() => toast('Copy failed; select the text manually')));
+  $$('[data-copytext]', root).forEach(b => b.onclick = () => navigator.clipboard.writeText(b.dataset.copytext).then(() => toast('Copied')));
+  $('#expJson', root).onclick = () => exportProject(p, false); $('#expJsonP', root).onclick = () => exportProject(p, true);
+  $('#impHere', root).onclick = importDialog;
+  $('#syncNowBtn', root).onclick = () => { if (!ghConfigured()) return settingsDialog(); toast('Syncing…'); syncNow(true); };
+  $('#openSettings2', root).onclick = settingsDialog;
+  $('#dupBld', root).onclick = () => promptBox('Duplicate building', 'Name for the copy', p.name + ' (copy)', 'Duplicate', name => { const c = clone(p); c.id = uid('p'); c.name = name; c.info.building = name; c.status = 'active'; c.created = c.updated = new Date().toISOString(); c.seqResults = {}; c.matrixResults = {}; c.zoneResults = {}; c.floors = {}; c.deficiencies = []; c._conflicts = []; S.projects[c.id] = c; S.dirty.add(c.id); persist(); scheduleSync(); go('setup', c.id); toast('Duplicated without results'); });
+}
+
+// ───────────────────────── Chat (sample capability) ─────────────────────────
+function projectBrief(p){
+  const pr = progress(p);
+  const fails = [];
+  p.equipment.forEach(e => getSeqTests(e).forEach((t,ti) => { if (seqGet(p,e,ti) === 'fail') fails.push(`${e.tag}: ${t.action}`); }));
+  for (const [k,v] of Object.entries(p.matrixResults)) if (v === 'fail') fails.push('matrix ' + k);
+  for (const [k,v] of Object.entries(p.zoneResults)) if (v === 'fail') fails.push('zone ' + k);
+  const press = Object.entries(p.floors).filter(([k,d]) => pressFlag('dp', d.dp) || pressFlag('brk', d.brk) || pressFlag('swg', d.swg) || d.cl === 'fail').map(([k,d]) => `${k} dp=${d.dp} brk=${d.brk} swg=${d.swg} cl=${d.cl}`);
+  return [
+    `Building: ${p.name}; ${p.info.address}; test date ${p.info.date}; inspector ${p.info.inspector}; floors ${p.info.floorLow}..${p.info.floorHigh}, first typical floor ${typicalLow(p)}; code ${p.info.code}.`,
+    `Systems: ${Object.entries(p.systems).filter(([k,v]) => v === true).map(([k]) => k).join(', ')}; corridor exhaust fire floor ${p.systems.exhaustFireFloor} +${p.systems.exhaustAbove}/-${p.systems.exhaustBelow}; pressurize fire floor ${p.systems.pressFireFloor} +${p.systems.corrAbove}/-${p.systems.corrBelow}.`,
+    `Stairwells: ${p.stairwells.join(', ') || 'none'}. Hoistways: ${p.hoistways.join(', ') || 'none'}. Pressure prefixes: ${pressBlocks(p).map(b => b.prefix).join(', ')}.`,
+    `Equipment (tag | type | location | zone | tests): ` + p.equipment.map(e => `${e.tag} | ${e.type} | ${e.location} | ${zoneInfo(e).zone || 'bw'} | ${getSeqTests(e).map((t,ti) => `${ti}:${t.action}=${seqGet(p,e,ti)||'-'}`).join('; ')}`).join('\n'),
+    `Matrix columns: ${getMatrixCols(p).map(c => c.key).join(', ')}. Typical floors: ${typicalFloors(p).join(',')}. Lower floors: ${lowerFloors(p).join(',')}.`,
+    `Zones: ${getZones(p).map(z => `${z.zone} (${z.room}, ${z.floor}) [${z.tags.join(',')}] fans=${p.zoneResults[z.zone+'_fans']||'-'} dampers=${p.zoneResults[z.zone+'_dampers']||'-'} isolate=${p.zoneResults[z.zone+'_isolate']||'-'}`).join('; ') || 'none'}.`,
+    `Table 1/2 results: ${[...VISUAL_ITEMS,...FAULT_TESTS,...EMERG_TESTS,...INIT_TESTS].map(t => `${t.id}=${p.seqResults[t.id]||'-'}`).join(' ')}.`,
+    `Progress: ${pr.done}/${pr.total} (${pr.pct}%). Fails: ${fails.join('; ') || 'none'}. Pressure out of range: ${press.join('; ') || 'none'}.`,
+    `Deficiencies (${p.deficiencies.length}): ` + p.deficiencies.map(d => `[${d.id}] ${d.sev} @ ${d.loc}: ${d.desc} -> ${d.action}`).join('\n'),
+    `Open items (${(p._meta.conflicts||[]).length}): ` + (p._meta.conflicts||[]).map(c => `[${c.id}] (${c.priority}, ${c.status||'open'}) ${c.item}: ${c.known} -> ${c.action}${c.resolution ? ' | note: ' + c.resolution : ''}`).join('\n'),
+    p.sequence.length ? `Sequence of operations: ` + p.sequence.map(s => `${s.trigger} -> ${s.response} [${(s.equipment||[]).join(',')}] ${s.floors}`).join('\n') : '',
+    p.sequenceNotes ? `Special floor notes: ${p.sequenceNotes}` : '', p.notes ? `General notes: ${p.notes}` : '',
+  ].filter(Boolean).join('\n');
+}
+const RULES = `You are the field assistant inside SC Inspect, EB Life Safety's smoke control inspection record. Answer briefly and plainly for an inspector on site. Use the tools to change the record only when the inspector clearly asks for a change; confirm exactly what you changed (tag, test, floor, value). Result values are pass, fail, na or empty. When something is ambiguous (which stair, which floor), ask one short question instead of guessing. Never invent results. Do not use em dashes.`;
+function chatTools(){
+  const id = () => S.currentId; const P = () => cur();
+  const norm = v => ({ p:'pass', pass:'pass', f:'fail', fail:'fail', n:'na', na:'na', 'n/a':'na', '':'', clear:'' })[String(v||'').toLowerCase()] ?? null;
+  return [
+    { name:'set_equipment_test', description:'Record a per-device Appendix A-1 result. test is the test index shown in the brief (0-based) or a phrase from the test action such as "belt" or "VFD" or "override ON". Returns the updated row.', inputSchema:{ type:'object', properties:{ tag:{type:'string'}, test:{type:'string'}, result:{type:'string', description:'pass, fail, na or clear'} }, required:['tag','test','result'] },
+      execute: ({tag, test, result}) => { const p = P(); const e = p.equipment.find(x => x.tag.toLowerCase() === String(tag).toLowerCase()); if (!e) throw new Error('No equipment with tag ' + tag); const tests = getSeqTests(e); let ti = /^\d+$/.test(String(test)) ? +test : tests.findIndex(t => (t.action + ' ' + t.event).toLowerCase().includes(String(test).toLowerCase())); if (ti < 0 || ti >= tests.length) throw new Error('No matching test; tests: ' + tests.map((t,i) => i + ':' + t.action).join(', ')); const r = norm(result); if (r == null) throw new Error('result must be pass, fail, na or clear'); updateProject(id(), pr => { if (r) pr.seqResults[seqKey(e,ti)] = r; else delete pr.seqResults[seqKey(e,ti)]; return pr; }, { keepFocus:true }); return `${e.tag} ${tests[ti].action} = ${r || 'cleared'}`; } },
+    { name:'set_matrix_cell', description:'Record a floor sequence matrix result. floor is the level label (e.g. "23", "Lobby", "B1"); column is a matrix column key or label (fan tag, "Corr Dmp", "Corr Seq", "EL1 Rel", "Press Abv"). Pass floors as an array to set several floors at once.', inputSchema:{ type:'object', properties:{ floors:{type:'array', items:{type:'string'}}, column:{type:'string'}, result:{type:'string'} }, required:['floors','column','result'] },
+      execute: ({floors, column, result}) => { const p = P(); const cols = getMatrixCols(p); const c = cols.find(x => x.key.toLowerCase() === String(column).toLowerCase() || x.label.toLowerCase() === String(column).toLowerCase() || x.key.toLowerCase() === 'fan_' + String(column).toLowerCase()); if (!c) throw new Error('Unknown column; columns: ' + cols.map(x => x.label).join(', ')); const r = norm(result); if (r == null) throw new Error('bad result'); const all = getFloors(p); const fls = (Array.isArray(floors) ? floors : [floors]).map(String); const bad = fls.filter(f => !all.includes(f)); if (bad.length) throw new Error('Floors not in range: ' + bad.join(', ')); updateProject(id(), pr => { fls.forEach(f => { const k = `${f}_${c.key}`; if (r) pr.matrixResults[k] = r; else delete pr.matrixResults[k]; }); return pr; }, { keepFocus:true }); return `${c.label} on ${fls.join(', ')} = ${r || 'cleared'}`; } },
+    { name:'set_zone_result', description:'Record a lower-level zone result. item is fans, dampers or isolate (or note / seq for text).', inputSchema:{ type:'object', properties:{ zone:{type:'string'}, item:{type:'string'}, value:{type:'string'} }, required:['zone','item','value'] },
+      execute: ({zone, item, value}) => { const p = P(); const z = getZones(p).find(x => x.zone.toLowerCase() === String(zone).toLowerCase().replace(/^zone\s*/,'')); if (!z) throw new Error('Unknown zone; zones: ' + getZones(p).map(x => x.zone).join(', ')); const it = String(item).toLowerCase(); if (!['fans','dampers','isolate','note','seq'].includes(it)) throw new Error('item must be fans, dampers, isolate, note or seq'); let v = value; if (it !== 'note' && it !== 'seq') { v = norm(value); if (v == null) throw new Error('bad result'); } updateProject(id(), pr => { const k = `${z.zone}_${it}`; if (v) pr.zoneResults[k] = v; else delete pr.zoneResults[k]; return pr; }, { keepFocus:true }); return `Zone ${z.zone} ${it} = ${v || 'cleared'}`; } },
+    { name:'set_pressure', description:'Record pressure differential (dp, in. w.g.) and door forces (brk, swg in lbf) and close/latch (cl: pass/fail) for one shaft prefix at one floor. shaft is a stair name, hoistway name, or "Corridor"; with vestibule pressurization each stair has two doors, named "<stair> (stair door)" and "<stair> (vestibule door)". Only fields passed are changed.', inputSchema:{ type:'object', properties:{ shaft:{type:'string'}, floor:{type:'string'}, dp:{type:'string'}, brk:{type:'string'}, swg:{type:'string'}, cl:{type:'string'} }, required:['shaft','floor'] },
+      execute: ({shaft, floor, dp, brk, swg, cl}) => { const p = P(); const blk = pressBlocks(p).find(b => b.label.toLowerCase() === String(shaft).toLowerCase() || b.prefix.toLowerCase() === String(shaft).toLowerCase()); if (!blk) throw new Error('Unknown shaft; options: ' + pressBlocks(p).map(b => b.label).join(', ')); const f = String(floor); if (!getFloors(p).includes(f)) throw new Error('Floor not in range'); updateProject(id(), pr => { const k = `${blk.prefix}_${f}`; const d = { dp:'', brk:'', swg:'', cl:'', ...(pr.floors[k]||{}) }; if (dp != null) d.dp = String(dp); if (brk != null) d.brk = String(brk); if (swg != null) d.swg = String(swg); if (cl != null) d.cl = norm(cl) || ''; pr.floors[k] = d; return pr; }, { keepFocus:true }); const d = P().floors[`${blk.prefix}_${f}`]; return `${blk.label} L${f}: dp=${d.dp} brk=${d.brk} swg=${d.swg} cl=${d.cl}` + (pressFlag('dp', d.dp) ? ' (below 0.05 minimum)' : '') + (pressFlag('brk', d.brk) || pressFlag('swg', d.swg) ? ' (door force over 30 lbf)' : ''); } },
+    { name:'add_deficiency', description:'Add a deficiency, observation or note to Appendix C. Write the observed condition by floor location in professional report language.', inputSchema:{ type:'object', properties:{ loc:{type:'string'}, sev:{type:'string', description:'Deficiency, Observation or Note'}, desc:{type:'string'}, action:{type:'string'} }, required:['loc','desc'] },
+      execute: ({loc, sev, desc, action}) => { const s = ['Deficiency','Observation','Note'].find(x => x.toLowerCase() === String(sev||'deficiency').toLowerCase()) || 'Deficiency'; const d = { id: uid('d'), loc: String(loc), sev: s, desc: String(desc), action: String(action||''), photos: [], ts: new Date().toISOString(), by: S.me || '' }; updateProject(id(), pr => { pr.deficiencies.push(d); return pr; }, { keepFocus:true }); return `Added ${s} ${d.id} at ${d.loc}`; } },
+    { name:'update_deficiency', description:'Edit or remove a deficiency by its id from the brief.', inputSchema:{ type:'object', properties:{ id:{type:'string'}, loc:{type:'string'}, sev:{type:'string'}, desc:{type:'string'}, action:{type:'string'}, remove:{type:'boolean'} }, required:['id'] },
+      execute: (inp) => { const p = P(); const d = p.deficiencies.find(x => x.id === inp.id); if (!d) throw new Error('No deficiency ' + inp.id); updateProject(id(), pr => { const x = pr.deficiencies.find(y => y.id === inp.id); if (inp.remove) pr.deficiencies = pr.deficiencies.filter(y => y.id !== inp.id); else { for (const k of ['loc','sev','desc','action']) if (inp[k] != null) x[k] = String(inp[k]); } return pr; }, { keepFocus:true }); return inp.remove ? 'Removed' : 'Updated'; } },
+    { name:'update_open_item', description:'Set status (open, resolved, na) and/or the resolution note of an open item by its id from the brief.', inputSchema:{ type:'object', properties:{ id:{type:'string'}, status:{type:'string'}, resolution:{type:'string'} }, required:['id'] },
+      execute: ({id: cid, status, resolution}) => { const p = P(); const c = p._meta.conflicts.find(x => x.id === cid); if (!c) throw new Error('No open item ' + cid); updateProject(id(), pr => { const x = pr._meta.conflicts.find(y => y.id === cid); if (status) { x.status = String(status).toLowerCase(); if (x.status !== 'open') { x.resolvedBy = S.me || ''; x.resolvedAt = todayISO(); } } if (resolution != null) x.resolution = String(resolution); return pr; }, { keepFocus:true }); return `Item "${c.item}" ${status ? 'is now ' + status : 'updated'}`; } },
+    { name:'add_equipment', description:'Add a device to the equipment list. zone/room/floor only for lower-level amenity equipment.', inputSchema:{ type:'object', properties:{ tag:{type:'string'}, type:{type:'string', description: FAN_TYPES.join(' | ')}, location:{type:'string'}, zone:{type:'string'}, room:{type:'string'}, floor:{type:'string'}, cfm:{type:'string'}, hasVFD:{type:'boolean'}, hasBelt:{type:'boolean'}, hasDuctDet:{type:'boolean'} }, required:['tag','type'] },
+      execute: (inp) => { const p = P(); if (p.equipment.some(e => e.tag.toLowerCase() === String(inp.tag).toLowerCase())) throw new Error('Tag exists'); const type = FAN_TYPES.find(t => t.toLowerCase() === String(inp.type).toLowerCase()) || FAN_TYPES.find(t => t.toLowerCase().includes(String(inp.type).toLowerCase().split(' ')[0])) || FAN_TYPES[0]; updateProject(id(), pr => { pr.equipment.push({ tag: String(inp.tag), type, location: String(inp.location||''), zone: String(inp.zone||''), room: String(inp.room||''), floor: String(inp.floor||''), cfm: String(inp.cfm||''), cmnt:'', hasVFD: !!inp.hasVFD, hasBelt: !!inp.hasBelt, hasDuctDet: !!inp.hasDuctDet }); return pr; }, { keepFocus:true }); return `Added ${inp.tag} (${type})`; } },
+  ];
+}
+function chatRender(){
+  const log = $('#chatLog'); log.innerHTML = S.chat.map(m => `<div class="msg ${m.role === 'user' ? 'u' : m.role === 'tool' ? 't' : 'a'}">${esc(m.content)}</div>`).join('') || `<div class="msg a">Ask about this building or tell me what to record. Examples: "mark SPF-3 belt-off as fail", "corridor dampers pass on levels 20 to 30", "Stair A level 12: dp 0.08, break 22, swing 14, latched", "what is still open?", "add a deficiency: level 9 west elevator lobby door does not latch".</div>`;
+  log.scrollTop = log.scrollHeight;
+}
+async function anthropicCall(messages, tools, signal, onText){
+  const body = { model: S.cfg.model || 'claude-sonnet-4-5', max_tokens: 1500, system: RULES, messages, tools: tools.map(t => ({ name: t.name, description: t.description, input_schema: t.inputSchema || { type:'object', properties:{} } })) };
+  const r = await fetch('https://api.anthropic.com/v1/messages', { method:'POST', signal, headers: { 'content-type':'application/json', 'x-api-key': S.cfg.anthropicKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' }, body: JSON.stringify(body) });
+  const j = await r.json();
+  if (!r.ok) { const e = new Error((j.error && j.error.message) || ('API ' + r.status)); e.status = r.status; throw e; }
+  return j;
+}
+async function chatSend(){
+  const box = $('#chatText'); const text = box.value.trim(); if (!text || S.chatBusy) return; const p = cur(); if (!p) return;
+  if (!S.online) { toast('Chat needs a connection.'); return; }
+  if (!S.cfg.anthropicKey) { toast('Add your Anthropic API key in Settings to use chat.'); settingsDialog(); return; }
+  box.value = ''; S.chat.push({ role:'user', content:text }); S.chatBusy = true; chatRender();
+  const bubble = { role:'assistant', content:'Thinking…' }; S.chat.push(bubble); chatRender();
+  S.chatCtl = new AbortController();
+  const hist = S.chat.filter(m => m.role !== 'tool' && m !== bubble).slice(-12).map(m => ({ role: m.role, content: m.content }));
+  const messages = [{ role:'user', content: 'CURRENT RECORD\n' + projectBrief(p) }, { role:'assistant', content:'Understood. I have the record.' }, ...hist];
+  const tools = chatTools();
+  try {
+    for (let round = 0; round < 6; round++) {
+      const resp = await anthropicCall(messages, tools, S.chatCtl.signal);
+      const textParts = resp.content.filter(c => c.type === 'text').map(c => c.text).join('\n').trim();
+      const uses = resp.content.filter(c => c.type === 'tool_use');
+      if (textParts) { bubble.content = textParts; chatRender(); }
+      if (!uses.length || resp.stop_reason !== 'tool_use') break;
+      messages.push({ role:'assistant', content: resp.content });
+      const results = [];
+      for (const u of uses) {
+        const t = tools.find(x => x.name === u.name); let out;
+        try { out = await t.execute(u.input || {}, { signal: S.chatCtl.signal }); S.chat.splice(S.chat.indexOf(bubble), 0, { role:'tool', content:'✓ ' + out }); }
+        catch (e) { out = 'Error: ' + (e.message || e); S.chat.splice(S.chat.indexOf(bubble), 0, { role:'tool', content:'✗ ' + out }); }
+        chatRender();
+        results.push({ type:'tool_result', tool_use_id: u.id, content: typeof out === 'string' ? out : JSON.stringify(out) });
+      }
+      messages.push({ role:'user', content: results });
+      bubble.content = 'Working…'; chatRender();
+    }
+    if (bubble.content === 'Working…' || bubble.content === 'Thinking…') bubble.content = 'Done.';
+  } catch (e) { bubble.content = e.name === 'AbortError' ? 'Stopped.' : e.status === 401 ? 'The Anthropic API key was rejected. Check Settings.' : 'Could not get an answer: ' + (e.message || e); }
+  S.chatBusy = false; chatRender();
+}
+function chatInit(){
+  $('#chatFab').onclick = () => { $('#chat').classList.add('open'); chatRender(); $('#chatText').focus(); };
+  $('#chatClose').onclick = () => $('#chat').classList.remove('open');
+  $('#chatClear').onclick = () => { S.chat = []; chatRender(); };
+  $('#chatSend').onclick = chatSend;
+  $('#chatText').onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSend(); } };
+}
+
+</script>
+<script>
+// ───────────────────────── view bindings + boot ─────────────────────────
+function bindView(root, p){
+  if (S.view === 'home') return bindHome(root);
+  if (!p) return;
+  ({ setup:bindSetup, equip:bindEquip, seq:() => {}, matrix:() => {}, zones:() => {}, press:bindPress, defic:bindDefic, items:bindItems, reports:bindReports })[S.view](root, p);
+}
+function settingsDialog(){
+  const c = S.cfg;
+  modal(`<h3>Settings</h3>
+    <div class="lbl">Team repository (GitHub)</div>
+    <p class="hint" style="margin-bottom:8px">Owner and repository are already filled in. Paste the access token, add your name, then Test connection.</p>
+    <div class="row2"><div class="field"><label class="lbl" for="st_owner">Owner (account or organization)</label><input id="st_owner" value="${esc(c.owner)}" placeholder="wfletcher13" autocapitalize="off"></div><div class="field"><label class="lbl" for="st_repo">Data repository</label><input id="st_repo" value="${esc(c.repo)}" placeholder="sc-inspect-data" autocapitalize="off"></div></div>
+    <div class="field"><label class="lbl" for="st_token">Access token</label><input id="st_token" type="password" value="${esc(c.token)}" placeholder="github_pat_…" autocapitalize="off"><div class="small faint">Fine-grained token with Contents read/write on the data repository. Stays on this device.</div></div>
+    <div class="lbl" style="margin-top:8px">Assistant (optional)</div>
+    <div class="row2"><div class="field"><label class="lbl" for="st_key">Anthropic API key</label><input id="st_key" type="password" value="${esc(c.anthropicKey)}" placeholder="sk-ant-…" autocapitalize="off"></div><div class="field"><label class="lbl" for="st_model">Model</label><input id="st_model" value="${esc(c.model)}" autocapitalize="off"></div></div>
+    <div class="field"><label class="lbl" for="st_me">Inspector name (this device)</label><input id="st_me" value="${esc(S.me)}"></div>
+    <div id="st_msg" class="small muted"></div>
+    <div class="acts"><button id="st_test">Test connection</button><button id="mCancel">Cancel</button><button id="mOk" class="btn-primary">Save</button></div>`, () => {
+    const read = () => { S.cfg.owner = $('#st_owner').value.trim(); S.cfg.repo = $('#st_repo').value.trim(); S.cfg.token = $('#st_token').value.trim(); S.cfg.anthropicKey = $('#st_key').value.trim(); S.cfg.model = $('#st_model').value.trim() || 'claude-sonnet-4-5'; S.me = $('#st_me').value.trim(); saveCfg(); lsSet(LS.me, S.me); };
+    $('#mCancel').onclick = closeModal;
+    $('#st_test').onclick = async () => { read(); const m = $('#st_msg'); m.textContent = 'Testing…'; try { const r = await ghTest(); m.textContent = `Connected to ${r.full_name} (${r.private ? 'private' : 'public'}).`; } catch (e) { m.textContent = 'Could not connect: ' + e.message; } };
+    $('#mOk').onclick = () => { read(); closeModal(); S.ghOk = null; S.lastPull = 0; render(); if (ghConfigured() && S.online) { toast('Saved. Syncing…'); syncNow(true); } };
+  });
+}
+async function boot(){
+  $('#btnNewSide').onclick = newBuilding; $('#btnHomeSide').onclick = () => go('home');
+  $('#btnSettingsSide').onclick = settingsDialog;
+  chatInit();
+  for (const [id, p] of Object.entries(S.projects)) { if ((p.schemaVersion || 1) < SCHEMA_VERSION) { S.projects[id] = normalizeProject({ ...p, id }); S.dirty.add(id); } }
+  render();
+  await loadPhotosCache();
+  if ('serviceWorker' in navigator) { try { const reg = await navigator.serviceWorker.register('./sw.js'); reg.addEventListener('updatefound', () => { const nw = reg.installing; nw && nw.addEventListener('statechange', () => { if (nw.state === 'installed' && navigator.serviceWorker.controller) toast('App updated. Reload to use the new version.', { label:'Reload', fn: () => location.reload() }); }); }); } catch (e) { console.warn('sw', e); } }
+  if (!ghConfigured() && !Object.keys(S.projects).length) settingsDialog();
+  if (ghConfigured() && S.online) scheduleSync(300);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') persist(); else if (ghConfigured() && S.online) scheduleSync(500); });
+  setInterval(() => { if (ghConfigured() && S.online && !S.syncing && document.visibilityState === 'visible') syncNow(); }, 45000);
+}
+boot();
+
+</script>
+</body>
+</html>
