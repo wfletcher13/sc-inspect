@@ -244,6 +244,8 @@ td.cp{background:var(--pass-bg)} td.cf{background:var(--fail-bg)} td.cn{backgrou
 .rep .card{margin:0;display:flex;flex-direction:column;gap:8px}
 .rep h4{font-size:14px;font-weight:600}
 .rep p{margin:0;font-size:12.5px;color:var(--ink2)}
+.scan{background:#000;border-radius:8px;overflow:hidden;aspect-ratio:3/4;max-height:52vh;display:grid;place-items:center}
+.scan video{width:100%;height:100%;object-fit:cover}
 .chk{display:flex;align-items:center;gap:8px;font-size:13px;margin:8px 0}
 .chk input{width:auto}
 /* drawings & documents */
@@ -365,7 +367,7 @@ function qrCanvas(text, px=6){
 <script>
 // ───────────────────────── data model ─────────────────────────
 const SCHEMA_VERSION = 2;
-const BUILD = '2026-09-14.cb96e2ab';
+const BUILD = '2026-09-14.ffcc9e3c';
 const FAN_TYPES = ['Stair pressurization fan','Smoke exhaust fan','Make-up air unit','RTU with smoke control','AHU with smoke control','Stair vestibule fan','Elevator pressurization fan','Smoke control damper'];
 const isDamper = e => ((e && e.type) || '').toLowerCase().includes('damper');
 const isFan = e => !isDamper(e);
@@ -1859,7 +1861,7 @@ function shareSetupDialog(){
     <p class="hint">This carries the access token, so treat it like a password: show the code to someone standing next to you, or send the link the way you would send a password. Anyone holding it can read and write this building data until the token is revoked.</p>
     <label class="chk"><input type="checkbox" id="sh_key" ${S.cfg.anthropicKey ? '' : 'disabled'}> Include the assistant key as well</label>
     <div id="sh_qr" style="margin:12px 0"></div>
-    <p class="hint"><b>On the other phone:</b> open <span class="mono">${esc(location.origin + location.pathname)}</span> in Safari, add it to the Home Screen, open it from there, then Settings &rarr; <b>Paste setup link</b>. Scanning the code with the camera opens the same page.</p>
+    <p class="hint"><b>On the other phone:</b> open <span class="mono">${esc(location.origin + location.pathname)}</span> in Safari, Share &rarr; Add to Home Screen, and open it from the Home Screen. Then Settings &rarr; <b>Scan setup code</b> and point it at this screen. The home screen app keeps its own settings, so it has to be set up from inside the app, not in Safari.</p>
     <div class="acts"><button id="sh_copy">Copy setup link</button><button id="mOk" class="btn-primary">Done</button></div>`, () => {
     const draw = () => { const box = $('#sh_qr'); box.innerHTML = ''; try { box.appendChild(qrCanvas(setupLink($('#sh_key').checked), 5)); } catch (e) { box.innerHTML = '<div class="empty small">The code is too long to show. Use Copy setup link instead.</div>'; } };
     draw();
@@ -1886,6 +1888,61 @@ function pasteSetupDialog(){
       catch (e) { m.textContent = 'Saved, but the check failed: ' + (e && e.message ? e.message : 'no answer from GitHub.'); }
     };
   });
+}
+
+// Scanning with the camera, inside the app. On an iPhone the home-screen app has its own storage,
+// separate from Safari, so opening a setup link in Safari does nothing for the installed app. This
+// is the path that actually works there: install first, then scan the code off the other screen.
+// The decoder is fetched on demand rather than bundled, since it is only needed at setup.
+let jsqrLoading = null;
+function loadScanner(){
+  if (window.jsQR) return Promise.resolve(true);
+  if (!jsqrLoading) jsqrLoading = new Promise((res, rej) => { const s = document.createElement('script'); s.src = './jsqr.js'; s.onload = () => res(true); s.onerror = () => { jsqrLoading = null; rej(new Error('The scanner could not load. It needs a connection the first time.')); }; document.head.appendChild(s); });
+  return jsqrLoading;
+}
+async function scanSetupDialog(){
+  modal(`<h3>Scan setup code</h3>
+    <p class="hint">On the device that already works, open Settings and tap <b>Set up another device</b>. Point this camera at the code on its screen.</p>
+    <div class="scan"><video id="sc_v" playsinline muted></video></div>
+    <div id="sc_msg" class="small muted" style="margin-top:8px">Starting the camera…</div>
+    <div class="acts"><button id="sc_paste">Paste a link instead</button><button id="mOk" class="btn-primary">Cancel</button></div>`, () => {});
+  const msg = t => { const m = $('#sc_msg'); if (m) m.textContent = t; };
+  let stream = null, raf = null, done = false;
+  const stop = () => { done = true; if (raf) cancelAnimationFrame(raf); if (stream) stream.getTracks().forEach(t => t.stop()); };
+  $('#mOk').onclick = () => { stop(); closeModal(); };
+  $('#sc_paste').onclick = () => { stop(); closeModal(); pasteSetupDialog(); };
+  try { await loadScanner(); } catch (e) { msg(e.message); return; }
+  try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); }
+  catch (e) {
+    msg(e && e.name === 'NotAllowedError'
+      ? 'The camera was refused. Allow it in Settings, or use Paste a link instead.'
+      : 'No camera available here. Use Paste a link instead.');
+    return;
+  }
+  const v = $('#sc_v'); if (!v) { stop(); return; }
+  v.srcObject = stream; await v.play().catch(() => {});
+  msg('Point at the code.');
+  const cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
+  const tick = () => {
+    if (done) return;
+    if (v.readyState === v.HAVE_ENOUGH_DATA) {
+      cv.width = v.videoWidth; cv.height = v.videoHeight;
+      cx.drawImage(v, 0, 0, cv.width, cv.height);
+      const img = cx.getImageData(0, 0, cv.width, cv.height);
+      const hit = window.jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+      if (hit && hit.data) {
+        let obj = null; try { obj = parseSetup(hit.data); } catch (e) { msg('That code is not an SC Inspect setup code.'); }
+        if (obj) {
+          stop(); applySetup(obj); closeModal(); toast('Scanned. Connecting…');
+          ghTest().then(() => { syncNow(true); toast('This device is set up. Loading the buildings…'); })
+                  .catch(e => toast('Scanned, but could not connect: ' + (e.message || '')));
+          render(); return;
+        }
+      }
+    }
+    raf = requestAnimationFrame(tick);
+  };
+  tick();
 }
 
 // A setup link opened in the browser. Never applied silently.
@@ -1951,12 +2008,13 @@ function settingsDialog(){
     <div class="lbl" style="margin-top:8px">Assistant (optional)</div>
     <div class="row2"><div class="field"><label class="lbl" for="st_key">Anthropic API key</label><input id="st_key" type="password" value="${esc(c.anthropicKey)}" placeholder="sk-ant-…" autocapitalize="off"></div><div class="field"><label class="lbl" for="st_model">Model</label><input id="st_model" value="${esc(c.model)}" autocapitalize="off"></div></div>
     <div class="field"><label class="lbl" for="st_me">Inspector name (this device)</label><input id="st_me" value="${esc(S.me)}"></div>
-    <div class="rowflex" style="margin-top:10px"><button id="st_paste">Paste setup link</button><button id="st_share">Set up another device</button><button id="st_diag">Connection check</button></div>
+    <div class="rowflex" style="margin-top:10px"><button id="st_scan" class="btn-primary">Scan setup code</button><button id="st_paste">Paste setup link</button><button id="st_share">Set up another device</button><button id="st_diag">Connection check</button></div>
     <div id="st_msg" class="small muted" style="margin-top:8px"></div>
     <div class="small faint" style="margin-top:6px">App build ${BUILD}</div>
     <div class="acts"><button id="st_test">Test repository</button><button id="st_testai">Test assistant</button><button id="mCancel">Cancel</button><button id="mOk" class="btn-primary">Save</button></div>`, () => {
     const read = () => { S.cfg.owner = $('#st_owner').value.trim(); S.cfg.repo = $('#st_repo').value.trim(); S.cfg.token = $('#st_token').value.trim(); S.cfg.anthropicKey = $('#st_key').value.trim(); S.cfg.model = $('#st_model').value.trim() || 'claude-sonnet-5'; S.me = $('#st_me').value.trim(); saveCfg(); lsSet(LS.me, S.me); };
     $('#mCancel').onclick = closeModal;
+    $('#st_scan').onclick = () => { read(); scanSetupDialog(); };
     $('#st_paste').onclick = () => { read(); pasteSetupDialog(); };
     $('#st_share').onclick = () => { read(); shareSetupDialog(); };
     $('#st_diag').onclick = () => { read(); diagnosticsDialog(); };
