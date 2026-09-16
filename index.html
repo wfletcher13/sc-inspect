@@ -678,6 +678,7 @@ const STORAGE_OK = (() => { try { localStorage.setItem('scv5_probe','1'); localS
 const S = {
   projects: lsGet(LS.projects, {}),      // id -> project (live local copy)
   base: lsGet(LS.base, {}),              // id -> last copy confirmed on GitHub
+  rev: {},                               // id -> local edit counter, so an upload in flight cannot discard newer entries
   shas: lsGet(LS.shas, {}),              // id -> blob sha of projects/<id>.json on GitHub
   dirty: new Set(lsGet(LS.dirty, [])),
   clientId: lsGet(LS.client, null) || (() => { const c = uid('c'); lsSet(LS.client, c); return c; })(),
@@ -754,7 +755,7 @@ function updateProject(id, fn, opts={}){
   const next = fn(clone(p)) || p;
   next.updated = new Date().toISOString();
   if (next.info && next.info.building) next.name = next.info.building;
-  S.projects[id] = next; S.dirty.add(id); persist(); scheduleSync();
+  S.projects[id] = next; S.rev[id] = (S.rev[id] || 0) + 1; S.dirty.add(id); persist(); scheduleSync();
   if (!opts.silent) render(opts);
 }
 const setPath = (obj, path, val) => { const parts = path.split('.'); let o = obj; for (let i=0;i<parts.length-1;i++) { if (o[parts[i]] == null) o[parts[i]] = {}; o = o[parts[i]]; } o[parts.at(-1)] = val; return obj; };
@@ -830,9 +831,11 @@ function adoptRemote(id, remote, sha){
   S.base[id] = clone(remote); S.shas[id] = sha;
 }
 async function pushOne(id){
-  const local = S.projects[id]; if (!local) { S.dirty.delete(id); return; }
+  if (!S.projects[id]) { S.dirty.delete(id); return; }
   const path = `projects/${id}.json`;
   for (let attempt = 0; attempt < 3; attempt++) {
+    const rev0 = S.rev[id] || 0;              // anything entered from here on is newer than what we are about to upload
+    const local = S.projects[id];
     const remote = await ghGetJson(path);
     let merged = remote ? threeWayMerge(S.base[id], local, remote.data) : clone(local);
     merged.id = id;
@@ -840,7 +843,9 @@ async function pushOne(id){
     if (body.length > 900000) toast('This building record is very large; consider trimming notes.');
     try {
       const sha = await ghPut(path, b64enc(body), remote ? remote.sha : undefined, `${S.me || 'inspector'}: ${merged.name || id}`);
-      S.projects[id] = merged; S.base[id] = clone(merged); S.shas[id] = sha; S.dirty.delete(id);
+      S.base[id] = clone(merged); S.shas[id] = sha;
+      if ((S.rev[id] || 0) === rev0) { S.projects[id] = merged; S.dirty.delete(id); }
+      else { scheduleSync(800); }             // entries landed mid-upload: keep them on screen and send them next round
       return (merged._conflicts || []).length - ((remote && remote.data._conflicts) || []).length;
     } catch (e) { if (e.status === 409 || e.status === 422) continue; throw e; }   // someone wrote first: re-read and merge again
   }
