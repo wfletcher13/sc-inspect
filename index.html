@@ -528,13 +528,29 @@ const hwKey = h => h.replace(/\s+/g,'_');
 const hwLabel = h => { const d = h.replace(/\D/g,''); return d ? 'EL'+d : h.slice(0,4); };
 
 // Matrix columns: building-wide fans (non-zone) + corridor + elevator + press
-function getMatrixCols(p){
+function getMatrixColsBase(p){
   const cols = [];
   p.equipment.filter(e => isFan(e) && !isZoneEq(e)).forEach(e => cols.push({ key:'fan_'+e.tag, label:e.tag, group:'Fans' }));
-  if (p.systems.corr) { cols.push({ key:'corr_dampers', label:'Corr Dmp', group:'Corridor' }); cols.push({ key:'corr_seq', label:'Corr Seq', group:'Corridor' }); }
+  if (p.systems.corr) { cols.push({ key:'corr_dampers', label:'Corr Dmp', group:'Corridor' }); }
   getHoistwayNames(p).forEach(h => { cols.push({ key:`elev_${hwKey(h)}_rel`, label:hwLabel(h)+' Rel', group:'Elev' }); cols.push({ key:`elev_${hwKey(h)}_lat`, label:hwLabel(h)+' Lat', group:'Elev' }); });
   if (p.systems.corr) { cols.push({ key:'press_above', label:'Press Abv', group:'Press' }); cols.push({ key:'press_below', label:'Press Blw', group:'Press' }); }
   return cols;
+}
+// Per-building column preferences: standard columns switched off, plus columns added on site.
+function getMatrixCols(p){
+  const hide = new Set(p.matrixColsHide || []);
+  const out = getMatrixColsBase(p).filter(c => !hide.has(c.key));
+  (p.matrixColsAdd || []).forEach(c => { if (c && c.key && !hide.has(c.key)) out.push({ key:c.key, label:c.label || c.key, group:c.group || 'Added' }); });
+  return out;
+}
+function colKey(label){ return 'cust_' + String(label).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,40); }
+function colEditor(p){
+  const hide = new Set(p.matrixColsHide || []); const add = p.matrixColsAdd || [];
+  const row = (c, custom) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd)"><span style="flex:1">${esc(c.label)} <span class="small faint mono">${esc(c.group||'')}</span></span>${custom ? `<button data-mxdel="${esc(c.key)}">Remove</button>` : switchEl(!hide.has(c.key), `data-mxhide="${esc(c.key)}"`)}</div>`;
+  return `<p class="hint">Switch a standard column off for this building, or add one of your own. Switching a column off keeps whatever was entered in it, so it comes back if you switch it on again. Removing a column you added clears its entries. Columns apply to both matrix tables and print in the report.</p>`
+    + getMatrixColsBase(p).map(c => row(c, false)).join('')
+    + add.map(c => row({ key:c.key, label:c.label || c.key, group:'Added on site' }, true)).join('')
+    + `<div class="acts" style="margin-top:12px"><button id="mxAdd" class="btn-primary">Add column</button></div>`;
 }
 // Zones grouped by floor
 function getZones(p){
@@ -1098,6 +1114,33 @@ function bindCommon(root){
     });
   });
   $$('[data-pf]', root).forEach(b => b.onclick = () => { const [map, key] = b.dataset.pf.split('|'); const v = b.dataset.v; updateProject(S.currentId, p => { const cur = p[map][key] || ''; if (cur === v) delete p[map][key]; else p[map][key] = v; return p; }, { keepFocus:true }); });
+  // Matrix column preferences
+  $$('[data-mxhide]', root).forEach(el => el.addEventListener('change', () => {
+    const key = el.dataset.mxhide, on = el.checked;
+    updateProject(S.currentId, p => { const h = new Set(p.matrixColsHide || []); if (on) h.delete(key); else h.add(key); p.matrixColsHide = [...h]; return p; });
+  }));
+  $$('[data-mxdel]', root).forEach(b => b.onclick = () => {
+    const key = b.dataset.mxdel;
+    updateProject(S.currentId, p => {
+      p.matrixColsAdd = (p.matrixColsAdd || []).filter(c => c.key !== key);
+      Object.keys(p.matrixResults).forEach(k => { if (k.endsWith('_' + key)) delete p.matrixResults[k]; });
+      return p;
+    });
+    toast('Column removed');
+  });
+  const mxAdd = $('#mxAdd', root);
+  if (mxAdd) mxAdd.onclick = () => promptBox('Add column', 'Column heading, kept short so it fits (for example Roof Hatch)', '', 'Add', label => {
+    const key = colKey(label);
+    if (!key) return;
+    updateProject(S.currentId, p => {
+      const add = (p.matrixColsAdd || []).slice();
+      if (!add.some(c => c.key === key)) add.push({ key, label, group:'Added on site' });
+      p.matrixColsAdd = add;
+      const h = new Set(p.matrixColsHide || []); h.delete(key); p.matrixColsHide = [...h];
+      return p;
+    });
+    toast('Added ' + label);
+  });
 }
 function newBuilding(){ promptBox('New building', 'Building name', '', 'Create', name => { createProject(name); toast('Created ' + name); }); }
 
@@ -1372,7 +1415,8 @@ function viewMatrix(p){
   const tlo = typicalLow(p);
   const a = `${stats}<p class="hint">A-2(a): typical floors, Levels ${tlo}–${esc(p.info.floorHigh)}, building-wide smoke control only. Columns: ${cols.map(c => esc(c.label)).join(' · ')}. Tap P / F / N; tap again to clear.</p>${typ.length ? matrixTable(p, typ, cols, 'Level') : '<div class="empty">No typical floors: first typical floor is above the highest floor.</div>'}`;
   const bRows = low.length ? `<p class="hint">Building-wide systems on the lower levels (corridor dampers, stair fans, elevator recall). Zone-specific purge and isolation for these floors is recorded under Lower-level zones.</p>${matrixTable(p, low, cols, 'Level')}` : '<div class="empty">No lower-level floors in range.</div>';
-  return sec('m_a', 'A-2(a) Typical floor sequence matrix', a) + sec('m_b', `Lower-level floors, building-wide columns (${low.length})`, bRows, { open:false });
+  return sec('m_a', 'A-2(a) Typical floor sequence matrix', a) + sec('m_b', `Lower-level floors, building-wide columns (${low.length})`, bRows, { open:false })
+    + sec('m_cols', `Columns (${cols.length})`, colEditor(p), { open:false });
 }
 
 // ───────────────────────── Lower-level zones ─────────────────────────
