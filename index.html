@@ -402,7 +402,7 @@ function qrCanvas(text, px=6){
 <script>
 // ───────────────────────── data model ─────────────────────────
 const SCHEMA_VERSION = 2;
-const BUILD = '2026-09-14.840d9f1e';
+const BUILD = '2026-09-16.2326';
 const FAN_TYPES = ['Stair pressurization fan','Smoke exhaust fan','Make-up air unit','RTU with smoke control','AHU with smoke control','Stair vestibule fan','Elevator pressurization fan','Smoke control damper'];
 const isDamper = e => ((e && e.type) || '').toLowerCase().includes('damper');
 const isFan = e => !isDamper(e);
@@ -2428,6 +2428,7 @@ function settingsDialog(){
       <div class="small faint">Light reads better in daylight. Dark saves battery on a phone screen and is easier at night. Auto follows the device.</div></div>
     <div class="rowflex" style="margin-top:10px"><button id="st_scan" class="btn-primary">Scan setup code</button><button id="st_paste">Paste setup link</button><button id="st_share">Set up another device</button><button id="st_diag">Connection check</button></div>
     <div id="st_msg" class="small muted" style="margin-top:8px"></div>
+    <div class="rowflex" style="margin-top:8px"><button id="st_update">Check for app update</button></div>
     <div class="small faint" style="margin-top:6px">App build ${BUILD}</div>
     <div class="acts"><button id="st_test">Test repository</button><button id="st_testai">Test assistant</button><button id="mCancel">Cancel</button><button id="mOk" class="btn-primary">Save</button></div>`, () => {
     const paintTheme = () => $$('#st_theme button').forEach(b => b.classList.toggle('on', b.dataset.theme === currentTheme()));
@@ -2435,6 +2436,7 @@ function settingsDialog(){
     $$('#st_theme button').forEach(b => b.onclick = () => { applyTheme(b.dataset.theme); paintTheme(); });
     const read = () => { S.cfg.owner = $('#st_owner').value.trim(); S.cfg.repo = $('#st_repo').value.trim(); S.cfg.token = $('#st_token').value.trim(); S.cfg.anthropicKey = $('#st_key').value.trim(); S.cfg.model = $('#st_model').value.trim() || 'claude-sonnet-5'; S.me = $('#st_me').value.trim(); saveCfg(); lsSet(LS.me, S.me); };
     $('#mCancel').onclick = closeModal;
+    $('#st_update').onclick = async () => { $('#st_msg').textContent = 'Checking…'; try { if (window.swReg) { await window.swReg.update(); } $('#st_msg').textContent = 'Checked. If a new build was found the app reloads on its own in a moment.'; setTimeout(() => location.reload(), 1500); } catch (e) { $('#st_msg').textContent = 'Could not check: ' + e.message; } };
     $('#st_scan').onclick = () => { read(); scanSetupDialog(); };
     $('#st_paste').onclick = () => { read(); pasteSetupDialog(); };
     $('#st_share').onclick = () => { read(); shareSetupDialog(); };
@@ -2462,7 +2464,20 @@ async function boot(){
   for (const [id, p] of Object.entries(S.projects)) { if ((p.schemaVersion || 1) < SCHEMA_VERSION) { S.projects[id] = normalizeProject({ ...p, id }); S.dirty.add(id); } }
   render();
   await loadPhotosCache();
-  if ('serviceWorker' in navigator) { try { const reg = await navigator.serviceWorker.register('./sw.js'); reg.addEventListener('updatefound', () => { const nw = reg.installing; nw && nw.addEventListener('statechange', () => { if (nw.state === 'installed' && navigator.serviceWorker.controller) toast('App updated. Reload to use the new version.', { label:'Reload', fn: () => location.reload() }); }); }); } catch (e) { console.warn('sw', e); } }
+  if ('serviceWorker' in navigator) {
+    try {
+      // updateViaCache:'none' stops the browser serving sw.js from its own cache, which is what
+      // kept a phone on an old build even after reopening the app.
+      const reg = await navigator.serviceWorker.register('./sw.js', { updateViaCache:'none' });
+      window.swReg = reg;
+      reg.update().catch(() => {});
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
+      setInterval(() => reg.update().catch(() => {}), 15 * 60 * 1000);
+      let reloading = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => { if (reloading) return; reloading = true; location.reload(); });
+      reg.addEventListener('updatefound', () => { const nw = reg.installing; nw && nw.addEventListener('statechange', () => { if (nw.state === 'installed' && navigator.serviceWorker.controller) toast('New build installing…'); }); });
+    } catch (e) { console.warn('sw', e); }
+  }
   const fromLink = setupFromHash();
   if (!fromLink && !ghConfigured() && !Object.keys(S.projects).length) settingsDialog();
   if (ghConfigured() && S.online) scheduleSync(300);
