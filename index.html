@@ -174,8 +174,9 @@ table.mx th{position:sticky;top:0;background:var(--bg4);color:var(--ink2);font-w
 table.mx th:first-child,table.mx td:first-child{position:sticky;left:0;background:var(--bg4);z-index:3;text-align:left;font-family:var(--font-mono);font-weight:600;padding-left:10px}
 table.mx td{padding:5px 7px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
 table.mx tr:last-child td{border-bottom:none}
-.mc{display:inline-flex;gap:4px}
-.mc button{width:36px;height:36px;padding:0;font-size:13px;font-weight:700;font-family:var(--font-mono);border-radius:6px;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.mc{display:block}
+.mc button{display:block;width:100%;min-width:54px;height:38px;padding:0;font-size:14px;font-weight:700;font-family:var(--font-mono);border-radius:6px;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.mc button.e{color:var(--ink2);opacity:.55}
 .mc button.p{background:var(--pass);border-color:var(--pass);color:#fff}
 .mc button.f{background:var(--fail);border-color:var(--fail);color:#fff}
 .mc button.n{background:var(--na);border-color:var(--na);color:#fff}
@@ -1116,6 +1117,18 @@ function bindCommon(root){
     });
   });
   $$('[data-pf]', root).forEach(b => b.onclick = () => { const [map, key] = b.dataset.pf.split('|'); const v = b.dataset.v; updateProject(S.currentId, p => { const cur = p[map][key] || ''; if (cur === v) delete p[map][key]; else p[map][key] = v; return p; }, { keepFocus:true }); });
+  // matrix cells: one tap cycles blank -> Pass -> Fail -> N/A -> blank
+  const CYC = ['', 'pass', 'fail', 'na'];
+  $$('[data-cyc]', root).forEach(b => b.onclick = () => {
+    const [map, key] = b.dataset.cyc.split('|');
+    const cur = (S.projects[S.currentId][map] || {})[key] || '';
+    const next = CYC[(CYC.indexOf(cur) + 1) % CYC.length];
+    b.className = next === 'pass' ? 'p' : next === 'fail' ? 'f' : next === 'na' ? 'n' : 'e';
+    b.innerHTML = next === 'pass' ? 'P' : next === 'fail' ? 'F' : next === 'na' ? 'N' : '&middot;';
+    const td = b.closest('td');
+    if (td) { td.classList.remove('cp','cf','cn'); if (next) td.classList.add(next === 'pass' ? 'cp' : next === 'fail' ? 'cf' : 'cn'); }
+    updateProject(S.currentId, p => { if (next) p[map][key] = next; else delete p[map][key]; return p; }, { keepFocus:true });
+  });
   // Matrix column preferences
   $$('[data-mxhide]', root).forEach(el => el.addEventListener('change', () => {
     const key = el.dataset.mxhide, on = el.checked;
@@ -1404,7 +1417,7 @@ function viewSeq(p){
 // ───────────────────────── Floor matrix ─────────────────────────
 function matrixTable(p, floors, cols, title){
   const mr = p.matrixResults;
-  return `<div class="tbl-wrap"><table class="mx"><thead><tr><th>${esc(title)}</th>${cols.map(c => `<th title="${esc(c.group)}">${esc(c.label)}</th>`).join('')}</tr></thead><tbody>${floors.map(fl => `<tr><td>${esc(fl)}</td>${cols.map(c => { const k = `${fl}_${c.key}`; const v = mr[k] || ''; return `<td class="${v==='pass'?'cp':v==='fail'?'cf':v==='na'?'cn':''}"><div class="mc"><button data-pf="matrixResults|${esc(k)}" data-v="pass" class="${v==='pass'?'p':''}">P</button><button data-pf="matrixResults|${esc(k)}" data-v="fail" class="${v==='fail'?'f':''}">F</button><button data-pf="matrixResults|${esc(k)}" data-v="na" class="${v==='na'?'n':''}">N</button></div></td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
+  return `<div class="tbl-wrap"><table class="mx"><thead><tr><th>${esc(title)}</th>${cols.map(c => `<th title="${esc(c.group)}">${esc(c.label)}</th>`).join('')}</tr></thead><tbody>${floors.map(fl => `<tr><td>${esc(fl)}</td>${cols.map(c => { const k = `${fl}_${c.key}`; const v = mr[k] || ''; return `<td class="${v==='pass'?'cp':v==='fail'?'cf':v==='na'?'cn':''}"><div class="mc"><button data-cyc="matrixResults|${esc(k)}" class="${v==='pass'?'p':v==='fail'?'f':v==='na'?'n':'e'}" title="Tap to cycle: Pass, Fail, N/A, clear">${v==='pass'?'P':v==='fail'?'F':v==='na'?'N':'&middot;'}</button></div></td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 function viewMatrix(p){
   const floors = getFloors(p); const cols = getMatrixCols(p);
@@ -1415,7 +1428,7 @@ function viewMatrix(p){
   const total = typ.length * cols.length; const entered = typ.reduce((n,f) => n + cols.filter(c => mr[`${f}_${c.key}`]).length, 0);
   const stats = `<div class="stats"><div class="stat pass"><b>${passes}</b><span>Pass</span></div><div class="stat ${fails?'fail':'pass'}"><b>${fails}</b><span>Fail</span></div><div class="stat"><b>${entered}/${total}</b><span>Typical cells</span></div></div>`;
   const tlo = typicalLow(p);
-  const a = `${stats}<p class="hint">A-2(a): typical floors, Levels ${tlo}–${esc(p.info.floorHigh)}, building-wide smoke control only. Columns: ${cols.map(c => esc(c.label)).join(' · ')}. Tap P / F / N; tap again to clear.</p>${typ.length ? matrixTable(p, typ, cols, 'Level') : '<div class="empty">No typical floors: first typical floor is above the highest floor.</div>'}`;
+  const a = `${stats}<p class="hint">A-2(a): typical floors, Levels ${tlo}–${esc(p.info.floorHigh)}, building-wide smoke control only. Columns: ${cols.map(c => esc(c.label)).join(' · ')}. Tap a cell to cycle Pass, Fail, N/A, clear.</p>${typ.length ? matrixTable(p, typ, cols, 'Level') : '<div class="empty">No typical floors: first typical floor is above the highest floor.</div>'}`;
   const bRows = low.length ? `<p class="hint">Building-wide systems on the lower levels (corridor dampers, stair fans, elevator recall). Zone-specific purge and isolation for these floors is recorded under Lower-level zones.</p>${matrixTable(p, low, cols, 'Level')}` : '<div class="empty">No lower-level floors in range.</div>';
   return sec('m_a', 'A-2(a) Typical floor sequence matrix', a) + sec('m_b', `Lower-level floors, building-wide columns (${low.length})`, bRows, { open:false })
     + sec('m_cols', `Columns (${cols.length})`, colEditor(p), { open:false });
