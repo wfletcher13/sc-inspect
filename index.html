@@ -740,7 +740,19 @@ function threeWayMerge(base, local, remote){
   const out = clone(remote);
   for (const f of SCALAR_PLAIN) out[f] = pick(local[f], remote[f], base[f], f, log);
   for (const f of SCALAR_OBJ) { out[f] = { ...(remote[f]||{}) }; const keys = new Set([...Object.keys(local[f]||{}), ...Object.keys(remote[f]||{})]); for (const k of keys) out[f][k] = pick((local[f]||{})[k], (remote[f]||{})[k], (base[f]||{})[k], `${f}.${k}`, log); }
-  for (const f of MAP_FIELDS) { out[f] = { ...(remote[f]||{}) }; const keys = new Set([...Object.keys(local[f]||{}), ...Object.keys(remote[f]||{})]); for (const k of keys) { const v = pick((local[f]||{})[k], (remote[f]||{})[k], (base[f]||{})[k], `${f}.${k}`, log); if (v === '' || v == null) delete out[f][k]; else out[f][k] = v; } }
+  for (const f of MAP_FIELDS) {
+    out[f] = { ...(remote[f]||{}) };
+    const keys = new Set([...Object.keys(local[f]||{}), ...Object.keys(remote[f]||{})]);
+    for (const k of keys) {
+      const L = (local[f]||{})[k], R = (remote[f]||{})[k], B = (base[f]||{})[k];
+      let v;
+      if (!blank(L)) v = L;                 // entered on this device: it wins, always
+      else if (!blank(B)) v = '';           // cleared on this device on purpose: the clear sticks
+      else v = R;                           // this device never had it: take what the other one entered
+      if (!same(v, R) && !blank(R)) log.push({ path:`${f}.${k}`, kept:v, dropped:R });
+      if (v === '' || v == null) delete out[f][k]; else out[f][k] = v;
+    }
+  }
   for (const [f,key] of Object.entries(KEYED)) out[f] = mergeKeyed(key, local[f], remote[f], base[f], f, log);
   out._meta = { ...(remote._meta||{}), ...(local._meta||{}) };
   out._meta.conflicts = mergeKeyed('id', (local._meta||{}).conflicts, (remote._meta||{}).conflicts, (base._meta||{}).conflicts, '_meta.conflicts', log);
@@ -808,7 +820,7 @@ async function ghTest(){ try { const r = await gh(`/repos/${S.cfg.owner}/${S.cfg
 
 // ── sync engine ──
 let syncTimer = null;
-function scheduleSync(ms=1200){ clearTimeout(syncTimer); syncTimer = setTimeout(syncNow, ms); updateSyncBadge(); }
+function scheduleSync(ms=3000){ clearTimeout(syncTimer); syncTimer = setTimeout(syncNow, ms); updateSyncBadge(); }
 function updateSyncBadge(){
   const el = document.getElementById('syncBadge'), lb = document.getElementById('syncLabel'); if (!el) return;
   let st = 'local', txt = 'Not connected';
