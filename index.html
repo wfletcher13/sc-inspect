@@ -841,7 +841,12 @@ async function pushOne(id){
     const rev0 = S.rev[id] || 0;              // anything entered from here on is newer than what we are about to upload
     const local = S.projects[id];
     const remote = await ghGetJson(path);
-    let merged = remote ? threeWayMerge(S.base[id], local, remote.data) : clone(local);
+    // If the read came back older than the copy we last confirmed, it is a stale read, not someone
+    // else's edit. Merging against it would delete our own confirmed entries, so push what we hold
+    // and let a sha mismatch bounce us round the loop again.
+    const base = S.base[id];
+    const stale = remote && base && base.updated && remote.data.updated && Date.parse(remote.data.updated) < Date.parse(base.updated);
+    let merged = (!remote || stale) ? clone(local) : threeWayMerge(base, local, remote.data);
     merged.id = id;
     const body = JSON.stringify(merged, null, 1);
     if (body.length > 900000) toast('This building record is very large; consider trimming notes.');
