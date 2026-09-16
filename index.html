@@ -163,7 +163,7 @@ main.content{flex:1;min-width:0;display:flex;flex-direction:column;height:100dvh
 .rr-ev{font-size:11.5px;color:var(--ink3)}
 .rr-exp{font-size:11.5px;color:var(--ink2);font-style:italic}
 .pfn{display:inline-flex;gap:3px;flex-shrink:0}
-.pfn button{min-width:38px;height:32px;padding:0 8px;font-weight:700;font-size:12px;font-family:var(--font-mono)}
+.pfn button{min-width:44px;height:38px;padding:0 10px;font-weight:700;font-size:13px;font-family:var(--font-mono);touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .pfn button.p{background:var(--pass);border-color:var(--pass);color:#fff}
 .pfn button.f{background:var(--fail);border-color:var(--fail);color:#fff}
 .pfn button.n{background:var(--na);border-color:var(--na);color:#fff}
@@ -172,10 +172,10 @@ main.content{flex:1;min-width:0;display:flex;flex-direction:column;height:100dvh
 table.mx{border-collapse:separate;border-spacing:0;font-size:12px;min-width:100%}
 table.mx th{position:sticky;top:0;background:var(--bg4);color:var(--ink2);font-weight:600;font-size:11px;letter-spacing:.03em;padding:8px 6px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap;z-index:2}
 table.mx th:first-child,table.mx td:first-child{position:sticky;left:0;background:var(--bg4);z-index:3;text-align:left;font-family:var(--font-mono);font-weight:600;padding-left:10px}
-table.mx td{padding:3px 4px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+table.mx td{padding:5px 7px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
 table.mx tr:last-child td{border-bottom:none}
-.mc{display:inline-flex;gap:2px}
-.mc button{width:26px;height:26px;padding:0;font-size:11px;font-weight:700;font-family:var(--font-mono);border-radius:5px}
+.mc{display:inline-flex;gap:4px}
+.mc button{width:36px;height:36px;padding:0;font-size:13px;font-weight:700;font-family:var(--font-mono);border-radius:6px;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .mc button.p{background:var(--pass);border-color:var(--pass);color:#fff}
 .mc button.f{background:var(--fail);border-color:var(--fail);color:#fff}
 .mc button.n{background:var(--na);border-color:var(--na);color:#fff}
@@ -1069,6 +1069,7 @@ function render(opts={}){
   const active = document.activeElement; const focusKey = opts.keepFocus && active && active.dataset && active.dataset.k ? active.dataset.k : (opts.keepFocus && active && active.id === 'eqFind' ? '#eqFind' : null);
   const selStart = focusKey && active.selectionStart != null ? active.selectionStart : null;
   const scrollTop = $('#scroll').scrollTop;
+  const hScroll = $$('.tbl-wrap').map(el => el.scrollLeft);   // wide matrices: a tap must not jump the table back to the left
   renderNav(); renderTopbar();
   const v = $('#view');
   const cp = cur();
@@ -1077,6 +1078,7 @@ function render(opts={}){
   bindCommon(v); bindView(v, cp);
   $('#chatFab').hidden = !cp || S.view === 'home';
   $('#scroll').scrollTop = scrollTop;
+  $$('.tbl-wrap').forEach((el, i) => { if (hScroll[i]) el.scrollLeft = hScroll[i]; });
   if (focusKey) { const el = focusKey === '#eqFind' ? v.querySelector('#eqFind') : v.querySelector(`[data-k="${focusKey}"]`); if (el) { el.focus(); if (selStart != null && el.setSelectionRange) try { el.setSelectionRange(selStart, selStart); } catch {} } }
   updateSyncBadge();
 }
