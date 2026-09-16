@@ -778,7 +778,7 @@ const b64dec = s => decodeURIComponent(escape(atob(s.replace(/\n/g,''))));
 async function gh(path, opts={}){
   let r;
   try {
-    r = await fetch(GH_API + path, { ...opts, headers: { 'Authorization': 'Bearer ' + S.cfg.token, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', ...(opts.headers||{}) } });
+    r = await fetch(GH_API + path, { cache:'no-store', ...opts, headers: { 'Authorization': 'Bearer ' + S.cfg.token, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', ...(opts.headers||{}) } });
   } catch (e) {
     // fetch itself failed, so the request never reached GitHub: no signal, a captive portal, or a
     // network that blocks it. Browsers give almost nothing here, so say what it means instead.
@@ -825,6 +825,10 @@ function updateSyncBadge(){
 }
 function adoptRemote(id, remote, sha){
   remote = { ...remote, id };            // the store key and the record's id are the same thing
+  const base = S.base[id];
+  // A read can still come back stale just after our own upload. An older copy never replaces a
+  // newer one: every real write stamps `updated`, so anything genuinely new is newer than our base.
+  if (base && base.updated && remote.updated && Date.parse(remote.updated) < Date.parse(base.updated)) return;
   const local = S.projects[id];
   if (S.dirty.has(id) && local) S.projects[id] = threeWayMerge(S.base[id], local, remote);
   else S.projects[id] = clone(remote);
