@@ -133,6 +133,15 @@ main.content{flex:1;min-width:0;display:flex;flex-direction:column;height:100dvh
 .sec-b.nopad{padding:0}
 .card{background:var(--bg3);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:8px}
 .hint{font-size:12px;color:var(--ink2);line-height:1.55;margin:0 0 10px}
+.howto{border:1px solid var(--line);background:var(--bg3);border-radius:var(--r);margin:0 0 10px;overflow:hidden}
+.howto-h{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;border-radius:0;padding:9px 10px;font-size:12px;font-weight:600;color:var(--ink2);text-align:left;touch-action:manipulation}
+.howto-h .i{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;background:var(--bg4);border:1px solid var(--line);font-size:11px;font-weight:700;flex:none}
+.howto-h .chev{margin-left:auto;flex:none;transition:transform .15s}
+.howto.closed .chev{transform:rotate(-90deg)}
+.howto-b{padding:0 12px 11px 35px;font-size:12px;color:var(--ink2);line-height:1.6}
+.howto-b p{margin:0 0 7px}
+.howto-b p:last-child{margin-bottom:0}
+.howto.closed .howto-b{display:none}
 .empty{padding:22px 12px;text-align:center;color:var(--ink3);font-size:13px}
 /* toggles */
 .tog-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
@@ -402,7 +411,7 @@ function qrCanvas(text, px=6){
 <script>
 // ───────────────────────── data model ─────────────────────────
 const SCHEMA_VERSION = 2;
-const BUILD = '2026-09-17.0223';
+const BUILD = '2026-09-17.0227';
 const FAN_TYPES = ['Stair pressurization fan','Smoke exhaust fan','Make-up air unit','RTU with smoke control','AHU with smoke control','Stair vestibule fan','Elevator pressurization fan','Smoke control damper'];
 const isDamper = e => ((e && e.type) || '').toLowerCase().includes('damper');
 const isFan = e => !isDamper(e);
@@ -1083,6 +1092,13 @@ function sec(id, title, body, opts={}){
   const open = openSecs[id] == null ? (opts.open !== false) : openSecs[id];
   return `<section class="sec${open?'':' closed'}" data-sec="${id}"><div class="sec-h" data-sech="${id}"><h3>${title}</h3>${opts.right||''}<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div><div class="sec-b${opts.nopad?' nopad':''}">${body}</div></section>`;
 }
+const howOpen = lsGet('scv4_how', {});
+// Short field guidance at the head of a screen. Open the first time, folded away for good once
+// the inspector taps it, so it teaches without crowding the page afterwards.
+function howTo(id, title, paras){
+  const open = howOpen[id] == null ? true : howOpen[id];
+  return `<div class="howto${open?'':' closed'}" data-how="${id}"><button class="howto-h" data-howt="${id}"><span class="i">i</span><span>${esc(title)}</span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button><div class="howto-b">${paras.map(t => `<p>${t}</p>`).join('')}</div></div>`;
+}
 function pfn(val, attrs){ return `<div class="pfn"><button data-v="pass" ${attrs} class="${val==='pass'?'p':''}">P</button><button data-v="fail" ${attrs} class="${val==='fail'?'f':''}">F</button><button data-v="na" ${attrs} class="${val==='na'?'n':''}">N/A</button></div>`; }
 function switchEl(checked, attrs){ return `<label class="switch"><input type="checkbox" ${checked?'checked':''} ${attrs}><span></span></label>`; }
 
@@ -1132,6 +1148,7 @@ function renderTopbar(){
 }
 function bindCommon(root){
   $$('[data-sech]', root).forEach(h => h.onclick = () => { const s = h.parentElement; s.classList.toggle('closed'); openSecs[h.dataset.sech] = !s.classList.contains('closed'); lsSet('scv4_secs', openSecs); });
+  $$('[data-howt]', root).forEach(h => h.onclick = () => { const b = h.parentElement; b.classList.toggle('closed'); howOpen[h.dataset.howt] = !b.classList.contains('closed'); lsSet('scv4_how', howOpen); });
   // text inputs bound to a project path: data-path (value) — no re-render while typing
   $$('[data-path]', root).forEach(el => {
     const ev = el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'date' ? 'change' : 'input';
@@ -1332,7 +1349,10 @@ function viewEquip(p){
   const body = `<div class="stats"><div class="stat"><b>${p.equipment.length}</b><span>Devices</span></div><div class="stat"><b>${bw}</b><span>Building-wide fans</span></div><div class="stat"><b>${zn}</b><span>Zone equipment</span></div><div class="stat"><b>${dm}</b><span>Dampers</span></div></div>
     <p class="hint">Building-wide fans (stair, vestibule, tower purge) become columns of the typical-floor matrix. Equipment assigned to a lower-level zone is grouped into the zone tables instead. ${zones.length ? `Zones so far: ${zones.map(z => esc(z.zone)).join(', ')}.` : ''}</p>
     <button class="btn-primary" id="eqAdd">+ Add equipment</button><div style="margin-top:12px">${rows || '<div class="empty">No equipment yet. Add fans, make-up air units, and dampers, or import the intake JSON.</div>'}</div>`;
-  return sec('e_list', `Equipment (${p.equipment.length})`, body);
+  const eguide = howTo('h_equip', 'What these switches do', [
+    'The VFD, belt and duct detector switches decide which test rows appear for that device under Sequence tests. Set them from what is actually installed on the machine, not from the drawings, or the test list will not match what is in front of you.',
+    'A device left without a zone becomes a column of the typical floor matrix. A device given a zone, room and floor is grouped into the lower-level zone tables instead.']);
+  return sec('e_list', `Equipment (${p.equipment.length})`, eguide + body);
 }
 function equipForm(p, idx){
   const e = idx != null ? p.equipment[idx] : { tag:'', type:FAN_TYPES[0], location:'', zone:'', room:'', floor:'', cfm:'', cmnt:'', hasVFD:false, hasBelt:false, hasDuctDet:false };
@@ -1436,6 +1456,10 @@ function viewSeq(p){
   return sec('q_eq', 'Equipment panel tests (Appendix A-1)', stats + eqTools + eqCards)
     + sec('q_fault', 'Fault conditions', FAULT_TESTS.map(f => rr(esc(f.lbl), f.id === 'f3' && !p.systems.weekly ? 'N/A, not required per AHJ' : esc(f.ev), '', p.seqResults[f.id]||'', `data-pf="seqResults|${f.id}"`)).join(''), { open:false })
     + sec('q_ep', 'Emergency power', EMERG_TESTS.map(f => rr(esc(f.lbl), esc(f.ev), '', p.seqResults[f.id]||'', `data-pf="seqResults|${f.id}"`)).join(''), { open:false })
+    + howTo('h_seq', 'How to run the device tests', [
+      'Work through each device with the fire alarm technician and the building engineer, one item at a time, recording the result before moving on.',
+      'On manual override the technician places the FSCP switch in the commanded position, confirms the fan itself responds, and records that the panel status matches the actual fan state, through ON, then OFF, then back to AUTO.',
+      'A fan commanded on must prove it is running by pressure difference or airflow switch, and the panel must show it. On power loss, open the disconnect and confirm the panel annunciates a trouble or fault for that device.'])
     + sec('q_init', 'Initiating devices', INIT_TESTS.map(f => rr(esc(f.lbl), f.id === 'i2' && !p.systems.wflow ? 'Not tested / deferred to annual inspections' : esc(f.ev), '', p.seqResults[f.id]||'', `data-pf="seqResults|${f.id}"`)).join(''), { open:false })
     + sec('q_vis', 'Visual inspection (Table 1)', Object.entries(cats).map(([c, items]) => `<div class="lbl" style="margin-top:10px">${esc(c)}</div>${items.map(v => rr(esc(v.lbl), '', '', p.seqResults[v.id]||'', `data-pf="seqResults|${v.id}"`)).join('')}`).join(''), { open:false });
 }
@@ -1454,7 +1478,11 @@ function viewMatrix(p){
   const total = typ.length * cols.length; const entered = typ.reduce((n,f) => n + cols.filter(c => mr[`${f}_${c.key}`]).length, 0);
   const stats = `<div class="stats"><div class="stat pass"><b>${passes}</b><span>Pass</span></div><div class="stat ${fails?'fail':'pass'}"><b>${fails}</b><span>Fail</span></div><div class="stat"><b>${entered}/${total}</b><span>Typical cells</span></div></div>`;
   const tlo = typicalLow(p);
-  const a = `${stats}<p class="hint">A-2(a): typical floors, Levels ${tlo}–${esc(p.info.floorHigh)}, building-wide smoke control only. Columns: ${cols.map(c => esc(c.label)).join(' · ')}. Tap a cell to cycle Pass, Fail, N/A, clear.</p>${typ.length ? matrixTable(p, typ, cols, 'Level') : '<div class="empty">No typical floors: first typical floor is above the highest floor.</div>'}`;
+  const guide = howTo('h_matrix', 'How to run the floor matrix', [
+    'Each row is the building response to a smoke detector activation on that floor. Initiate one floor at a time with the fire alarm technician.',
+    'Check every column on that floor: each fan listed shall activate on alarm. Where the corridor system pressurizes above and below, confirm the fans and the associated dampers on the floor above and the floor below operate and deliver airflow to those floors. Dampers on floors outside the response shall close.',
+    'Reset the panel and let the system return to normal before initiating the next floor.']);
+  const a = `${guide}${stats}<p class="hint">A-2(a): typical floors, Levels ${tlo}–${esc(p.info.floorHigh)}, building-wide smoke control only. Columns: ${cols.map(c => esc(c.label)).join(' · ')}. Tap a cell to cycle Pass, Fail, N/A, clear.</p>${typ.length ? matrixTable(p, typ, cols, 'Level') : '<div class="empty">No typical floors: first typical floor is above the highest floor.</div>'}`;
   const bRows = low.length ? `<p class="hint">Building-wide systems on the lower levels (corridor dampers, stair fans, elevator recall). Zone-specific purge and isolation for these floors is recorded under Lower-level zones.</p>${matrixTable(p, low, cols, 'Level')}` : '<div class="empty">No lower-level floors in range.</div>';
   return sec('m_a', 'A-2(a) Typical floor sequence matrix', a) + sec('m_b', `Lower-level floors, building-wide columns (${low.length})`, bRows, { open:false })
     + sec('m_cols', `Columns (${cols.length})`, colEditor(p), { open:false });
@@ -1470,7 +1498,10 @@ function viewZones(p){
   const body = Object.entries(byFloor).map(([fl, zs]) => `<div class="lbl" style="margin:12px 0 6px">${esc(fl)}</div>${zs.map(z => { const roll = zoneRollup(p, z); return `<div class="zn"><div class="zn-h"><span class="z">Zone ${esc(z.zone)}</span><span class="muted">${esc(z.room || '')}</span><span class="small faint mono">${z.tags.map(esc).join(', ')}</span><span style="margin-left:auto" class="res ${roll || 'none'}">${roll ? (roll === 'partial' ? 'PARTIAL' : roll.toUpperCase()) : 'Equipment A-1: none'}</span></div>
       <div class="zn-cells">${cell(z,'fans','Fans start (purge)')}${cell(z,'dampers','Dampers operate')}${cell(z,'isolate','Adjacent zones isolate')}</div>
       <div class="row2" style="margin-top:8px"><div><label class="lbl">Zone note</label><input data-k="zr.${esc(z.zone)}.note" data-path="zoneResults.${esc(z.zone)}_note" value="${esc(zr[z.zone+'_note']||'')}" placeholder="Observed behaviour, make-up air, etc."></div><div><label class="lbl">Zone sequence (override)</label><input data-k="zr.${esc(z.zone)}.seq" data-path="zoneResults.${esc(z.zone)}_seq" value="${esc(zr[z.zone+'_seq']||'')}" placeholder="Default: zone purges; adjacent zones isolate"></div></div></div>`; }).join('')}`).join('');
-  return sec('z_a', `A-2(b) Lower-level zone matrix (${zones.length} zones)`, `<p class="hint">On alarm in a zone, that zone is placed in purge and adjacent zones isolate. The Result column of the report rolls up from each zone's own equipment tests in Sequence tests; the three columns here print directly.</p>${body}`);
+  const zguide = howTo('h_zones', 'How to run the zone tests', [
+    'Initiate one zone at a time. That zone is placed in purge, its own fans start and its dampers drive to position, and the adjacent zones isolate.',
+    'Record the three columns from what the zone actually did. The Result column is rolled up from that zone equipment in Sequence tests, so test the fans there as well.']);
+  return sec('z_a', `A-2(b) Lower-level zone matrix (${zones.length} zones)`, `${zguide}<p class="hint">On alarm in a zone, that zone is placed in purge and adjacent zones isolate. The Result column of the report rolls up from each zone's own equipment tests in Sequence tests; the three columns here print directly.</p>${body}`);
 }
 
 </script>
@@ -1508,7 +1539,11 @@ function viewPress(p){
     body = `<div class="field"><label class="lbl" for="pfl">Level</label><select id="pfl" style="max-width:220px">${floors.map((f,i) => `<option value="${i}" ${i===sub?'selected':''}>${esc(f)}</option>`).join('')}</select></div>${pressByFloor(p, floors[sub], blocks)}
       <div style="display:flex;gap:6px;margin-top:6px"><button data-pnav="-1" ${sub===0?'disabled':''}>↑ ${esc(floors[sub-1] ?? '')}</button><button data-pnav="1" ${sub===floors.length-1?'disabled':''}>↓ ${esc(floors[sub+1] ?? '')}</button></div>`;
   }
-  return sec('p_a', 'Pressure differential & door force (A-2b)', `${stats}<p class="hint">Minimum ΔP 0.05 in. w.g.; maximum door force 30 lbf (NFPA 92 §6.4.2). Out-of-range values are outlined in red. Both entry modes write the same record.${p.systems.vest ? ' With vestibule pressurization enabled, each stair is measured at both doors: the stair door and the vestibule door.' : ''}</p>${mode}${body}`);
+  const pguide = howTo('h_press', 'How to take the readings', [
+    'Activate the stair and elevator fans first and let them come up to their operating state, then record the differential and the door forces at each door on each floor.',
+    'Minimum 0.05 in. w.g. Maximum door opening force 30 lbf, or 15 lbf where accessibility requirements apply. Record whether the door closes and latches at each level.',
+    'Where the system exhausts the fire floor, record that floor with the system in alarm, then reset and move to the next floor.']);
+  return sec('p_a', 'Pressure differential & door force (A-2b)', `${pguide}${stats}<p class="hint">Minimum ΔP 0.05 in. w.g.; maximum door force 30 lbf (NFPA 92 §6.4.2). Out-of-range values are outlined in red. Both entry modes write the same record.${p.systems.vest ? ' With vestibule pressurization enabled, each stair is measured at both doors: the stair door and the vestibule door.' : ''}</p>${mode}${body}`);
 }
 function bindPress(root){
   $$('[data-pm]', root).forEach(b => b.onclick = () => { S.pressMode = b.dataset.pm; S.pressSub = 0; persist(); render(); });
@@ -1530,7 +1565,11 @@ function viewDefic(p){
   const body = `<div class="stats"><div class="stat ${c.Deficiency?'fail':'pass'}"><b>${c.Deficiency}</b><span>Deficiencies</span></div><div class="stat ${c.Observation?'warn':''}"><b>${c.Observation}</b><span>Observations</span></div><div class="stat"><b>${c.Note}</b><span>Notes</span></div></div>
     <button class="btn-primary" id="defAdd">+ Add item</button><div style="margin-top:12px">${items || '<div class="empty">No deficiencies recorded.</div>'}</div>`;
   const notes = `<textarea data-k="notes" data-path="notes" style="min-height:120px" placeholder="General observations, site conditions, coordination notes, outstanding items">${esc(p.notes||'')}</textarea>`;
-  return sec('d_a', 'Deficiencies & observations (Appendix C)', body) + sec('d_n', 'General notes', notes, { open:false });
+  const dguide = howTo('h_defic', 'How to write these up', [
+    'Give the location by floor and area, the condition as observed, and what needs to happen to correct it. Write it as it will read in the report.',
+    'Photograph anything recorded as a deficiency. A condition without a photograph is much harder to defend months later.',
+    'Deficiency is something that fails to perform, Observation is a condition worth recording that is not a failure, and Note is context for the report.']);
+  return sec('d_a', 'Deficiencies & observations (Appendix C)', dguide + body) + sec('d_n', 'General notes', notes, { open:false });
 }
 function deficForm(p, id){
   const d = id ? p.deficiencies.find(x => x.id === id) : { loc:'', sev:'Deficiency', desc:'', action:'' };
