@@ -402,7 +402,7 @@ function qrCanvas(text, px=6){
 <script>
 // ───────────────────────── data model ─────────────────────────
 const SCHEMA_VERSION = 2;
-const BUILD = '2026-09-16.2326';
+const BUILD = '2026-09-17.0201';
 const FAN_TYPES = ['Stair pressurization fan','Smoke exhaust fan','Make-up air unit','RTU with smoke control','AHU with smoke control','Stair vestibule fan','Elevator pressurization fan','Smoke control damper'];
 const isDamper = e => ((e && e.type) || '').toLowerCase().includes('damper');
 const isFan = e => !isDamper(e);
@@ -1625,6 +1625,56 @@ function projectBrief(p){
   ].filter(Boolean).join('\n');
 }
 const RULES = `You are the field assistant inside SC Inspect, EB Life Safety's smoke control inspection record. Answer briefly and plainly for an inspector on site. Use the tools to change the record only when the inspector clearly asks for a change; confirm exactly what you changed (tag, test, floor, value). Result values are pass, fail, na or empty. When something is ambiguous (which stair, which floor), ask one short question instead of guessing. Never invent results. Intake questions in the brief are background from before the inspection: use them to explain what to look at, never as a checklist to work through, and never repeat them unasked. Do not use em dashes.`;
+const SCREENS = {
+  home:'Building list', setup:'Building setup', equip:'Equipment list',
+  seq:'Sequence tests: Table 1 visual items, Table 2 fault, emergency power and initiating device items, and the per-device Appendix A-1 test rows',
+  matrix:'Floor sequence matrix A-2', zones:'Lower-level zone matrix A-2(b)',
+  press:'Pressure differential and door force A-2b', defic:'Deficiencies, Appendix C',
+  files:'Drawings and documents', reports:'Reports and data'
+};
+// How an inspection is run. The assistant coaches from this: the next step for where the
+// inspector is standing, not the whole procedure at once.
+const PROCEDURE = `HOW AN INSPECTION IS RUN
+
+The inspector's current screen is named with the record. When asked what to do next, or what a
+table is for, answer with the procedure for that screen and keep it to the next step or two.
+
+GENERAL
+Testing is done with the fire alarm technician and the building engineer present. Work one item at
+a time and record the result before moving on. Record what was observed, not what should happen.
+Reset the fire alarm panel between scenarios and confirm fans and dampers return to normal before
+initiating the next device.
+
+EQUIPMENT TESTS, PER DEVICE (Appendix A-1)
+Take each device through its test items in order with the fire alarm technician.
+Manual override: the fire alarm technician places the FSCP switch in the commanded position, the
+technician confirms the fan responds, and records that the panel status matches the actual fan
+state, through ON, OFF and back to AUTO.
+Power loss: open the disconnect and confirm the panel annunciates a trouble or fault for that device.
+Where a device has a VFD, record the drive settings and the speed it runs at in smoke control mode.
+Where it is belt driven, confirm 1.5 times the number of belts. Where a duct detector serves it,
+confirm it reports at the panel.
+A fan commanded on must prove it is running by pressure difference or airflow switch, and the panel
+must show it.
+
+FLOOR MATRIX (A-2)
+Each row is the building's response to a smoke detector activation on that floor, so initiate one
+floor at a time. Every column is checked on each floor: each piece of equipment listed shall
+activate on alarm. Where pressurization above and below is provided, confirm the fans and the
+associated pressurization or exhaust dampers on the floor above and the floor below operate and
+deliver airflow to those floors. Dampers on floors outside the response shall close. Reset the panel
+before initiating the next floor.
+
+PRESSURE AND DOOR FORCE (A-2b)
+Activate the stair and elevator fans, then record the pressure differential and door forces at each
+door on each floor. Minimum 0.05 in. w.g., maximum door opening force 30 lbf, or 15 lbf where
+accessibility requirements apply. With a vestibule, both doors in series are measured, the stair
+door and the vestibule door. Where the system exhausts the fire floor, record that floor with the
+system in alarm, then reset and move to the next floor. Record closing and latching at each level.
+
+DEFICIENCIES (Appendix C)
+Give the location by floor and area, describe the observed condition, and state what needs to
+happen. Photograph anything recorded as a deficiency.`;
 function chatTools(){
   const id = () => S.currentId; const P = () => cur();
   const norm = v => ({ p:'pass', pass:'pass', f:'fail', fail:'fail', n:'na', na:'na', 'n/a':'na', '':'', clear:'' })[String(v||'').toLowerCase()] ?? null;
@@ -1645,7 +1695,7 @@ function chatTools(){
       execute: (inp) => { const p = P(); if (p.equipment.some(e => e.tag.toLowerCase() === String(inp.tag).toLowerCase())) throw new Error('Tag exists'); const type = FAN_TYPES.find(t => t.toLowerCase() === String(inp.type).toLowerCase()) || FAN_TYPES.find(t => t.toLowerCase().includes(String(inp.type).toLowerCase().split(' ')[0])) || FAN_TYPES[0]; updateProject(id(), pr => { pr.equipment.push({ tag: String(inp.tag), type, location: String(inp.location||''), zone: String(inp.zone||''), room: String(inp.room||''), floor: String(inp.floor||''), cfm: String(inp.cfm||''), cmnt:'', hasVFD: !!inp.hasVFD, hasBelt: !!inp.hasBelt, hasDuctDet: !!inp.hasDuctDet }); return pr; }, { keepFocus:true }); return `Added ${inp.tag} (${type})`; } },
   ];
 }
-const QUICK = ['What is still open?', 'Summarise the fails', 'Any pressure readings out of range?', 'What did I record on this floor?'];
+const QUICK = ['How do I run this one?', 'What is still open?', 'Summarise the fails', 'Any pressure readings out of range?', 'What did I record on this floor?'];
 function chatRender(){
   const log = $('#chatLog'); if (!log) return;
   const intro = `<div class="msg a">Tell me what to record, or ask about this building. For example: "mark SPF-3 belt-off as fail", "corridor dampers pass on levels 20 to 30", "Stair A level 12: dp 0.08, break 22, swing 14, latched", "add a deficiency: level 9 west elevator lobby door does not latch".</div>`;
@@ -1668,7 +1718,7 @@ function apiError(e){
   return 'Could not get an answer: ' + (e && e.message || e);
 }
 async function anthropicCall(messages, tools, signal, onText){
-  const body = { model: S.cfg.model || 'claude-sonnet-4-5', max_tokens: 1500, system: RULES, messages, tools: tools.map(t => ({ name: t.name, description: t.description, input_schema: t.inputSchema || { type:'object', properties:{} } })) };
+  const body = { model: S.cfg.model || 'claude-sonnet-4-5', max_tokens: 1500, system: RULES + '\n\n' + PROCEDURE, messages, tools: tools.map(t => ({ name: t.name, description: t.description, input_schema: t.inputSchema || { type:'object', properties:{} } })) };
   const r = await fetch('https://api.anthropic.com/v1/messages', { method:'POST', signal, headers: { 'content-type':'application/json', 'x-api-key': S.cfg.anthropicKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' }, body: JSON.stringify(body) });
   const j = await r.json();
   if (!r.ok) { const e = new Error((j.error && j.error.message) || ('API ' + r.status)); e.status = r.status; throw e; }
@@ -1683,7 +1733,7 @@ async function chatSend(){
   const bubble = { role:'assistant', content:'Thinking…' }; S.chat.push(bubble); chatRender();
   S.chatCtl = new AbortController();
   const hist = S.chat.filter(m => m.role !== 'tool' && m !== bubble).slice(-12).map(m => ({ role: m.role, content: m.content }));
-  const messages = [{ role:'user', content: 'CURRENT RECORD\n' + projectBrief(p) }, { role:'assistant', content:'Understood. I have the record.' }, ...hist];
+  const messages = [{ role:'user', content: 'CURRENT RECORD\n' + projectBrief(p) + '\n\nCURRENT SCREEN: ' + (SCREENS[S.view] || S.view) }, { role:'assistant', content:'Understood. I have the record and I can see which screen you are on.' }, ...hist];
   const tools = chatTools();
   try {
     for (let round = 0; round < 6; round++) {
