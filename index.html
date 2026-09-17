@@ -402,7 +402,7 @@ function qrCanvas(text, px=6){
 <script>
 // ───────────────────────── data model ─────────────────────────
 const SCHEMA_VERSION = 2;
-const BUILD = '2026-09-17.0208';
+const BUILD = '2026-09-17.0223';
 const FAN_TYPES = ['Stair pressurization fan','Smoke exhaust fan','Make-up air unit','RTU with smoke control','AHU with smoke control','Stair vestibule fan','Elevator pressurization fan','Smoke control damper'];
 const isDamper = e => ((e && e.type) || '').toLowerCase().includes('damper');
 const isFan = e => !isDamper(e);
@@ -589,9 +589,9 @@ function getSeqTests(eq){
 const seqKey = (eq, ti) => `${eq.tag}_${ti}`;
 const seqGet = (p, eq, ti) => p.seqResults[seqKey(eq,ti)] || '';
 
+// Power loss and positive confirmation are tested device by device in Appendix A-1, so they are
+// not asked again here. Only the panel configuration item that nothing else covers remains.
 const FAULT_TESTS = [
-  { id:'f1', lbl:'Power loss fault, each active component', ev:'TROUBLE/FAULT on both panels' },
-  { id:'f2', lbl:'Loss of positive confirmation when commanded ON', ev:'TROUBLE/FAULT on both panels' },
   { id:'f3', lbl:'UUKL weekly self-test', ev:'Verify programmed or document N/A' },
 ];
 const EMERG_TESTS = [
@@ -600,10 +600,10 @@ const EMERG_TESTS = [
   { id:'e3', lbl:'Sample pressure differentials on emergency power', ev:'Values within design range' },
   { id:'e4', lbl:'Required-open dampers operate on EP', ev:'Confirm damper positions' },
 ];
+// Smoke detector initiation is the floor matrix, and duct detectors are tested on the devices that
+// have them, so waterflow is the only initiating path left to record here.
 const INIT_TESTS = [
-  { id:'i1', lbl:'Smoke detectors, all floors, confirm startup sequence', ev:'Correct zone activation' },
   { id:'i2', lbl:'Waterflow switches, all floors', ev:'Confirm appropriate startup sequence' },
-  { id:'i3', lbl:'Duct detectors serving active fans', ev:'Confirm response and panel indication' },
 ];
 const VISUAL_ITEMS = [
   { id:'v1', cat:'Stair / Shaft', lbl:'Smokeproof enclosure barrier construction' },
