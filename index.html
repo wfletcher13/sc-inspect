@@ -402,7 +402,7 @@ function qrCanvas(text, px=6){
 <script>
 // ───────────────────────── data model ─────────────────────────
 const SCHEMA_VERSION = 2;
-const BUILD = '2026-09-17.0201';
+const BUILD = '2026-09-17.0208';
 const FAN_TYPES = ['Stair pressurization fan','Smoke exhaust fan','Make-up air unit','RTU with smoke control','AHU with smoke control','Stair vestibule fan','Elevator pressurization fan','Smoke control damper'];
 const isDamper = e => ((e && e.type) || '').toLowerCase().includes('damper');
 const isFan = e => !isDamper(e);
@@ -1620,11 +1620,14 @@ function projectBrief(p){
     p.sequenceNotes ? `Special floor notes: ${p.sequenceNotes}` : '', p.notes ? `General notes: ${p.notes}` : '',
     // Kept as background for the assistant: questions raised at intake about what the drawings, panel
     // and narrative disagreed about. Not a task list, not shown in the app, and not in any document.
+    (p.files || []).length ? `Attached documents (id | kind | name | already on this device): ` +
+      p.files.map(f => `${f.id} | ${f.kind} | ${f.name} | ${fileCached(f) ? 'yes' : 'no'}`).join('\n') +
+      `\nRead one with read_document. For a scanned drawing or a panel photo use read_sheet.` : '',
     ((p._meta || {}).conflicts || []).length ? `Intake questions on this building (background only, may already be settled): ` +
       p._meta.conflicts.map(c => `${c.item}${c.known ? ' (' + c.known + ')' : ''}${c.status && c.status !== 'open' ? ' [' + c.status + ']' : ''}${c.resolution ? ' note: ' + c.resolution : ''}`).join('; ') : '',
   ].filter(Boolean).join('\n');
 }
-const RULES = `You are the field assistant inside SC Inspect, EB Life Safety's smoke control inspection record. Answer briefly and plainly for an inspector on site. Use the tools to change the record only when the inspector clearly asks for a change; confirm exactly what you changed (tag, test, floor, value). Result values are pass, fail, na or empty. When something is ambiguous (which stair, which floor), ask one short question instead of guessing. Never invent results. Intake questions in the brief are background from before the inspection: use them to explain what to look at, never as a checklist to work through, and never repeat them unasked. Do not use em dashes.`;
+const RULES = `You are the field assistant inside SC Inspect, EB Life Safety's smoke control inspection record. Answer briefly and plainly for an inspector on site. Use the tools to change the record only when the inspector clearly asks for a change; confirm exactly what you changed (tag, test, floor, value). Result values are pass, fail, na or empty. When something is ambiguous (which stair, which floor), ask one short question instead of guessing. Never invent results. When the inspector asks what a drawing, schedule, panel photo, remediation plan or prior report says, read it with read_document or read_sheet and answer from the document; do not answer from the record or from memory of how these buildings usually work, and say so if it is not attached. Intake questions in the brief are background from before the inspection: use them to explain what to look at, never as a checklist to work through, and never repeat them unasked. Do not use em dashes.`;
 const SCREENS = {
   home:'Building list', setup:'Building setup', equip:'Equipment list',
   seq:'Sequence tests: Table 1 visual items, Table 2 fault, emergency power and initiating device items, and the per-device Appendix A-1 test rows',
@@ -1693,7 +1696,49 @@ function chatTools(){
       execute: (inp) => { const p = P(); const d = p.deficiencies.find(x => x.id === inp.id); if (!d) throw new Error('No deficiency ' + inp.id); updateProject(id(), pr => { const x = pr.deficiencies.find(y => y.id === inp.id); if (inp.remove) pr.deficiencies = pr.deficiencies.filter(y => y.id !== inp.id); else { for (const k of ['loc','sev','desc','action']) if (inp[k] != null) x[k] = String(inp[k]); } return pr; }, { keepFocus:true }); return inp.remove ? 'Removed' : 'Updated'; } },
     { name:'add_equipment', description:'Add a device to the equipment list. zone/room/floor only for lower-level amenity equipment.', inputSchema:{ type:'object', properties:{ tag:{type:'string'}, type:{type:'string', description: FAN_TYPES.join(' | ')}, location:{type:'string'}, zone:{type:'string'}, room:{type:'string'}, floor:{type:'string'}, cfm:{type:'string'}, hasVFD:{type:'boolean'}, hasBelt:{type:'boolean'}, hasDuctDet:{type:'boolean'} }, required:['tag','type'] },
       execute: (inp) => { const p = P(); if (p.equipment.some(e => e.tag.toLowerCase() === String(inp.tag).toLowerCase())) throw new Error('Tag exists'); const type = FAN_TYPES.find(t => t.toLowerCase() === String(inp.type).toLowerCase()) || FAN_TYPES.find(t => t.toLowerCase().includes(String(inp.type).toLowerCase().split(' ')[0])) || FAN_TYPES[0]; updateProject(id(), pr => { pr.equipment.push({ tag: String(inp.tag), type, location: String(inp.location||''), zone: String(inp.zone||''), room: String(inp.room||''), floor: String(inp.floor||''), cfm: String(inp.cfm||''), cmnt:'', hasVFD: !!inp.hasVFD, hasBelt: !!inp.hasBelt, hasDuctDet: !!inp.hasDuctDet }); return pr; }, { keepFocus:true }); return `Added ${inp.tag} (${type})`; } },
+    { name:'read_document', description:'Read an attached document on this building and answer from it. file is the file id from the brief or part of its name. Pulls the text out of a PDF or a Word file. A scanned drawing has no text to pull and this tool will say so; use read_sheet for those.', inputSchema:{ type:'object', properties:{ file:{type:'string'} }, required:['file'] },
+      execute: async ({file}) => {
+        const p = P(); const f = findAttachment(p, file);
+        const data = await fetchFileData(p.id, f);
+        if (!data) throw new Error(S.online ? `${f.name} is not in the repository yet` : `${f.name} is not on this device and there is no signal`);
+        const ext = (f.ext || fileExt(f.name) || '').toLowerCase();
+        if (ext === 'docx' || ext === 'doc') { const r = await docxExtractText(data.b64); return `${f.name}\n\n${r.text || '(no readable text)'}`; }
+        if (ext === 'pdf') {
+          const r = await pdfExtractText(data.b64);
+          if (r.text.replace(/\[page \d+\]/g, '').trim().length < 200)
+            return `NO TEXT LAYER: ${f.name} is a scanned document of ${r.pages} page${r.pages===1?'':'s'}, so there is no text to read. Use read_sheet with a page number to look at it.`;
+          return `${f.name} (${r.pages} page${r.pages===1?'':'s'})\n\n${r.text}`;
+        }
+        if (isImageFile(f)) return `${f.name} is an image. Use read_sheet to look at it.`;
+        throw new Error(`Cannot read ${f.name} (.${ext}); open it in Drawings and docs instead`);
+      } },
+    { name:'read_sheet', description:'Look at one page of an attached drawing, scanned document or photo and answer a question about it. Use for mechanical sheets, equipment schedules and firefighter panel photos. Each call sends one page image, so name the page and ask one clear question.', inputSchema:{ type:'object', properties:{ file:{type:'string'}, page:{type:'number', description:'PDF page number, 1 for a photo'}, question:{type:'string'} }, required:['file','question'] },
+      execute: async ({file, page, question}, opts = {}) => {
+        const p = P(); const f = findAttachment(p, file);
+        const data = await fetchFileData(p.id, f);
+        if (!data) throw new Error(S.online ? `${f.name} is not in the repository yet` : `${f.name} is not on this device and there is no signal`);
+        const ext = (f.ext || fileExt(f.name) || '').toLowerCase();
+        let img, label;
+        if (ext === 'pdf') { const r = await pdfPageJpeg(data.b64, page || 1); img = { media_type:'image/jpeg', data: r.b64 }; label = `${f.name} page ${r.page} of ${r.pages}`; }
+        else if (isImageFile(f)) { img = { media_type: fileMime(f), data: data.b64 }; label = f.name; }
+        else throw new Error(`${f.name} is not something that can be looked at as a page`);
+        const ask = [{ type:'image', source:{ type:'base64', ...img } },
+          { type:'text', text: `This is ${label} from the smoke control record for ${p.name}. Answer this from what the page actually shows, quoting the tags, values and note text you can read. If it is not legible or not on this page, say so plainly rather than guessing.\n\nQuestion: ${question}` }];
+        const resp = await anthropicCall([{ role:'user', content: ask }], [], opts.signal);
+        const txt = (resp.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n').trim();
+        return `From ${label}:\n${txt || '(nothing readable)'}`;
+      } },
   ];
+}
+function findAttachment(p, q){
+  const files = p.files || [];
+  const s = String(q || '').toLowerCase().trim();
+  const f = files.find(x => x.id.toLowerCase() === s)
+    || files.find(x => x.name.toLowerCase() === s)
+    || files.find(x => x.name.toLowerCase().includes(s))
+    || files.find(x => s.includes(x.name.toLowerCase()));
+  if (!f) throw new Error(files.length ? 'No such document. Attached: ' + files.map(x => x.name).join('; ') : 'Nothing is attached to this building yet');
+  return f;
 }
 const QUICK = ['How do I run this one?', 'What is still open?', 'Summarise the fails', 'Any pressure readings out of range?', 'What did I record on this floor?'];
 function chatRender(){
@@ -2098,6 +2143,42 @@ async function renderDocx(box, data, status){
   const res = await m.convertToHtml({ arrayBuffer: b64ToBytes(data.b64).buffer });
   box.innerHTML = `<div class="fv-doc">${res.value}</div>`;
   status('converted for reading; open the file itself for the exact layout');
+}
+
+// Text out of a document, for the assistant. A scanned drawing has no text layer, so the caller
+// is told to look at the page instead.
+async function pdfExtractText(b64, maxChars = 12000){
+  const lib = await loadPdfLib();
+  const doc = await lib.getDocument({ data: b64ToBytes(b64) }).promise;
+  let out = '';
+  for (let n = 1; n <= doc.numPages && out.length < maxChars; n++) {
+    const page = await doc.getPage(n);
+    const tc = await page.getTextContent();
+    const t = tc.items.map(i => i.str).join(' ').replace(/\s+/g, ' ').trim();
+    if (t) out += `\n[page ${n}] ` + t;
+  }
+  return { text: out.trim().slice(0, maxChars), pages: doc.numPages };
+}
+async function docxExtractText(b64, maxChars = 12000){
+  const m = await loadMammoth();
+  const res = await m.convertToHtml({ arrayBuffer: b64ToBytes(b64).buffer });
+  const t = res.value.replace(/<\/(p|div|h\d|li|tr)>/g, '\n').replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/[ \t]+/g, ' ').replace(/\n\s*\n+/g, '\n').trim();
+  return { text: t.slice(0, maxChars) };
+}
+// One PDF page as a JPEG, sized for the model rather than the screen.
+async function pdfPageJpeg(b64, pageNo, maxEdge = 1500){
+  const lib = await loadPdfLib();
+  const doc = await lib.getDocument({ data: b64ToBytes(b64) }).promise;
+  const n = Math.max(1, Math.min(doc.numPages, +pageNo || 1));
+  const page = await doc.getPage(n);
+  const base = page.getViewport({ scale: 1 });
+  const scale = Math.min(4, maxEdge / Math.max(base.width, base.height));
+  const vp = page.getViewport({ scale });
+  const c = document.createElement('canvas');
+  c.width = Math.ceil(vp.width); c.height = Math.ceil(vp.height);
+  await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+  return { b64: c.toDataURL('image/jpeg', 0.82).split(',')[1], page: n, pages: doc.numPages };
 }
 
 // A viewer that works inside a home-screen app, where a blob URL in a new tab is often blocked.
