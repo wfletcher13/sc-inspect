@@ -1,0 +1,6 @@
+# Field-results outputs contain project data and must never be committed to this public repository.
+*.field-results/
+*.proposed-patch.json
+*.proposed-post-test.json
+*.field-results-review.md
+node_modules/
