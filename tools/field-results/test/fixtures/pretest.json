@@ -1,0 +1,50 @@
+{
+  "id": "pSYNTH0001",
+  "schemaVersion": 2,
+  "name": "Example Tower (synthetic)",
+  "status": "active",
+  "created": "2026-09-01T12:00:00.000Z",
+  "updated": "2026-09-20T12:00:00.000Z",
+  "info": {
+    "building": "Example Tower (synthetic)",
+    "address": "100 Sample Street, Testville",
+    "date": "2026-09-28",
+    "inspector": "Test Inspector",
+    "company": "Existing Building, LLC (EB Life Safety)",
+    "floorLow": 1,
+    "floorHigh": 12,
+    "typicalLow": 4,
+    "code": "FBC §909 / NFPA 92"
+  },
+  "systems": {
+    "stair": true, "vest": false, "elev": true, "corr": true,
+    "exhaustFireFloor": true, "exhaustAbove": 0, "exhaustBelow": 0,
+    "pressFireFloor": false, "corrAbove": 1, "corrBelow": 1,
+    "lobby": true, "weekly": false, "wflow": false
+  },
+  "stairwells": ["Stair A", "Stair B"],
+  "hoistways": ["EL-1"],
+  "sequence": [
+    { "id": "s1", "trigger": "Smoke detector, any typical floor", "response": "SPF-1, SPF-2 and EPF-1 start; corridor dampers on alarm floor open to exhaust", "equipment": ["SPF-1", "SPF-2", "EPF-1", "SEF-1"], "floors": "4-12", "notes": "" },
+    { "id": "s2", "trigger": "Smoke detector, Zone 11", "response": "EF-11 starts, SD-11 opens, Zone 12 isolates", "equipment": ["EF-11", "SD-11"], "floors": "2", "notes": "" }
+  ],
+  "sequenceNotes": "",
+  "equipment": [
+    { "tag": "SPF-1", "type": "Stair pressurization fan", "location": "Roof, serves Stair A", "cfm": "12000", "hasVFD": true, "hasBelt": false, "hasDuctDet": false },
+    { "tag": "SPF-2", "type": "Stair pressurization fan", "location": "Roof, serves Stair B", "cfm": "11000", "hasVFD": false, "hasBelt": true, "hasDuctDet": false },
+    { "tag": "EPF-1", "type": "Elevator pressurization fan", "location": "Roof, serves EL-1", "cfm": "8000", "hasVFD": false, "hasBelt": false, "hasDuctDet": false },
+    { "tag": "SEF-1", "type": "Smoke exhaust fan", "location": "Roof, corridor exhaust riser", "cfm": "15000", "hasVFD": false, "hasBelt": false, "hasDuctDet": true },
+    { "tag": "SD-1", "type": "Smoke control damper", "location": "Level 5 corridor exhaust", "cfm": "" },
+    { "tag": "EF-11", "type": "Smoke exhaust fan", "location": "Zone 11 — Ballroom (2nd Floor)", "cfm": "9000" },
+    { "tag": "SD-11", "type": "Smoke control damper", "location": "Zone 11 — Ballroom (2nd Floor)" },
+    { "tag": "EF-12", "type": "Smoke exhaust fan", "location": "Zone 12 — Fitness Center (3rd Floor)", "cfm": "6000" }
+  ],
+  "files": [],
+  "seqResults": { "SPF-2_0": "pass" },
+  "matrixResults": {},
+  "zoneResults": {},
+  "floors": {},
+  "deficiencies": [],
+  "notes": "",
+  "_meta": { "source": "synthetic test fixture", "sequenceFull": "", "conflicts": [] }
+}

@@ -1,0 +1,32 @@
+[00:00:12] Speaker 1: Okay, starting the smoke control test at Example Tower. Fire alarm tech is with me.
+[00:01:05] Speaker 1: SPF-1 manual override on, fan running, panel shows on. Pass.
+[00:01:40] Speaker 1: SPF-1 override off, back to auto. Passed.
+[00:02:15] Speaker 2: Opening the disconnect on SPF-1 now.
+[00:02:30] Speaker 1: SPF-1 disconnect, trouble came in at the panel, pass.
+[00:03:10] Speaker 1: SPF-1 VFD power loss.
+[00:03:25] Speaker 2: Fault showed up. Pass.
+[00:04:00] Speaker 1: SPF-1 measured airflow twelve thousand five hundred CFM.
+[00:05:00] Speaker 1: SPF-2 belt test, fan did not shut down, fail.
+[00:05:30] Speaker 1: SPF-2 override on, pass.
+[00:06:10] Speaker 1: EPF-1 override on passed.
+[00:06:40] Speaker 1: EPF-1 disconnect not tested, the disconnect is locked out.
+[00:07:05] Speaker 1: SEF-1 is running.
+[00:07:30] Speaker 1: Smoke detector on level 8, panel in alarm.
+[00:07:50] Speaker 1: SPF-1 pass.
+[00:08:00] Speaker 1: SPF-2 pass.
+[00:08:10] Speaker 1: Corridor dampers failed, the level 9 damper stayed closed.
+[00:08:25] Speaker 1: Write that up as a deficiency, corridor damper on level 9 did not open on alarm from level 8.
+[00:09:00] Speaker 1: Resetting the panel.
+[00:10:00] Speaker 1: Level 12, stair A, point zero eight inches of water column. Break twenty two pounds, swing twelve pounds. Closed and latched.
+[00:10:40] Speaker 1: Stair B, 0.04 in wc, break 31 lbf, swing 14 lbf, door did not latch.
+[00:11:30] Speaker 1: Level 11. Stair A 0.07 in. w.g., door opening force 25 lbf.
+[00:12:00] Speaker 1: Elevator 1, level 11, 0.06 inches w.c.
+[00:12:30] Speaker 1: Stair B level 11, is that 0.05 in wc?
+[00:13:00] Speaker 1: Zone 11 purge, fans started, pass.
+[00:13:20] Speaker 1: Zone 11 dampers pass.
+[00:13:40] Speaker 1: Zone 11 adjacent zones isolated, pass.
+[00:14:00] Speaker 1: Zone 12 fans failed to start. Fail.
+[00:14:20] Speaker 1: Observation: Zone 12 exhaust grille partially blocked by storage.
+[00:15:00] Speaker 1: Pass.
+[00:15:30] Speaker 1: Level 3, stair A, 0.06 in wc, break 18 pounds swing 10 pounds, latched.
+[00:16:00] Speaker 1: Level 14 stair A 0.06 in wc.

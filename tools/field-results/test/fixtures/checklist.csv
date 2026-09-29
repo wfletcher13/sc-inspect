@@ -1,0 +1,9 @@
+Example Tower pretest checklist - fans & dampers (synthetic),,,,
+Item #,Device,Test / Check,Result,Comments
+1,SPF-1,Manual override ON from FSCP,Y,
+2,SPF-2,Belt loss shutdown,Y,
+3,SD-1,Damper opens on FSCP open command,Y,
+4,,Smoke gasket seals at door frames,N,Stair B level 7 gasket torn at latch side
+5,,Fire stopping at penetrations,Y,
+6,EPF-1,Controller firmware version recorded,Y,
+7,SEF-1,Manual override OFF,maybe,

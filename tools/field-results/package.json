@@ -1,0 +1,12 @@
+{
+  "name": "sc-inspect-field-results",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Field test recording + notes -> proposed SC Inspect post-test JSON patch with a review table. Never modifies the source record.",
+  "bin": { "sc-field-results": "cli.js" },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "engines": { "node": ">=18" },
+  "license": "UNLICENSED"
+}
