@@ -1,0 +1,11 @@
+{
+  "title": "Example Tower field test, part 2 (synthetic)",
+  "speakers": { "S1": "Inspector", "S2": "FA Tech" },
+  "segments": [
+    { "start": 1020.0, "speaker": "S1", "text": "SEF-1 duct detector activation, fan shut down, pass." },
+    { "start": 1050.5, "speaker": "S1", "text": "SD-1 switch to closed, damper closed, panel shows closed. Pass." },
+    { "start": 1080.0, "speaker": "S1", "text": "SEF-1 airflow 12,500 CFM." },
+    { "start": 1110.0, "speaker": "S2", "text": "Level 3 stair A reads 0.05 in wc." },
+    { "start": 1140.0, "speaker": "S1", "text": "Level 11 stair A 0.07 inches of water." }
+  ]
+}
